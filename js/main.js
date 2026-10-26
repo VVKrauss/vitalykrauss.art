@@ -11,6 +11,7 @@
   const heroImage = document.querySelector("#hero-image");
 
   const openSeries = new Set(["insecterra", "with-yudochkina"]);
+  const slideAt = {};
   const request = [];
   let lang = localStorage.getItem("vk-lang") || "en";
   let openWorkId = null;
@@ -19,6 +20,7 @@
   if (!["en", "ru", "es"].includes(lang)) lang = "en";
 
   document.addEventListener("click", onClick);
+  document.addEventListener("keydown", onKeydown);
   document.addEventListener("submit", onSubmit);
   viewer.addEventListener("click", onBackdrop);
   requestDialog.addEventListener("click", onBackdrop);
@@ -32,6 +34,18 @@
       lang = langButton.dataset.lang;
       localStorage.setItem("vk-lang", lang);
       render();
+      return;
+    }
+
+    const stepButton = event.target.closest("[data-step]");
+    if (stepButton) {
+      stepSlide(stepButton.dataset.slideshow, Number(stepButton.dataset.step));
+      return;
+    }
+
+    const dotButton = event.target.closest("[data-go]");
+    if (dotButton) {
+      stepSlide(dotButton.dataset.slideshow, 0, Number(dotButton.dataset.go));
       return;
     }
 
@@ -74,6 +88,14 @@
     if (event.target.closest("[data-remove]")) {
       removeItem(event.target.closest("[data-remove]").dataset.remove, event.target.closest("[data-remove]").dataset.kind);
     }
+  }
+
+  function onKeydown(event) {
+    const slideshow = event.target.closest("[data-slideshow]");
+    if (!slideshow) return;
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+    event.preventDefault();
+    stepSlide(slideshow.dataset.slideshow, event.key === "ArrowRight" ? 1 : -1);
   }
 
   function onSubmit(event) {
@@ -165,9 +187,7 @@
         + '<div class="statement">' + series.statement[lang].map(function (paragraph) {
           return "<p>" + escapeHtml(paragraph) + "</p>";
         }).join("") + "</div>"
-        + '<div class="works">' + series.works.map(function (item, index) {
-          return renderWorkButton(item, series, index);
-        }).join("") + "</div></div>"
+        + renderSlideshow(series) + "</div>"
       : '<div class="series-body" id="body-' + series.id + '" hidden></div>';
     return '<article class="series">'
       + '<h2 class="visually-hidden">' + escapeHtml(title) + "</h2>"
@@ -181,11 +201,37 @@
       + "</article>";
   }
 
-  function renderWorkButton(item, series, index) {
-    return '<button type="button" class="work" data-open-work="' + item.id + '">'
+  function renderSlideshow(series) {
+    const count = series.works.length;
+    const index = ((slideAt[series.id] || 0) % count + count) % count;
+    const item = series.works[index];
+    const dots = series.works.map(function (_, dotIndex) {
+      return '<button type="button" class="slide-dot" data-go="' + dotIndex + '" data-slideshow="' + series.id + '" aria-label="' + (dotIndex + 1) + '" aria-current="' + (dotIndex === index) + '"></button>';
+    }).join("");
+    return '<div class="slideshow" data-slideshow="' + series.id + '" tabindex="0">'
+      + '<div class="slide-frame"><button type="button" class="work" data-open-work="' + item.id + '">'
       + '<img src="' + item.image + '" width="' + item.width + '" height="' + item.height + '" alt="' + escapeHtml(altText(item, series)) + '">'
-      + '<span class="work-meta"><span class="work-index">' + pad(index + 1) + '</span><span class="work-name">' + escapeHtml(item.title[lang]) + "</span></span>"
-      + "</button>";
+      + "</button></div>"
+      + '<div class="slide-bar"><button type="button" class="slide-arrow" data-step="-1" data-slideshow="' + series.id + '" aria-label="' + escapeHtml(t("slide.prev")) + '">‹</button>'
+      + '<p class="slide-caption"><span class="work-index">' + pad(index + 1) + '</span><span class="work-name">' + escapeHtml(item.title[lang]) + "</span></p>"
+      + '<button type="button" class="slide-arrow" data-step="1" data-slideshow="' + series.id + '" aria-label="' + escapeHtml(t("slide.next")) + '">›</button></div>'
+      + '<div class="slide-dots">' + dots + "</div></div>";
+  }
+
+  function stepSlide(seriesId, delta, absoluteIndex) {
+    const series = SITE.series.find(function (entry) { return entry.id === seriesId; });
+    if (!series) return;
+    const count = series.works.length;
+    const current = slideAt[seriesId] || 0;
+    slideAt[seriesId] = absoluteIndex == null
+      ? (current + delta + count) % count
+      : ((absoluteIndex % count) + count) % count;
+    renderSeries();
+    const focusSelector = absoluteIndex == null
+      ? '[data-slideshow="' + seriesId + '"] [data-step="' + delta + '"]'
+      : '[data-slideshow="' + seriesId + '"] [data-go="' + slideAt[seriesId] + '"]';
+    const focusTarget = seriesRoot.querySelector(focusSelector);
+    if (focusTarget) focusTarget.focus();
   }
 
   function renderExhibitions() {
