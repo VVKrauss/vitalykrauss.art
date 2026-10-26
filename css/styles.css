@@ -212,8 +212,8 @@ button { cursor: pointer; }
 .series-toggle {
   width: 100%;
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 1.25rem;
+  grid-template-columns: 3.2rem 1fr auto;
+  gap: 0.5rem 1.5rem;
   align-items: baseline;
   text-align: left;
   color: inherit;
@@ -226,6 +226,8 @@ button { cursor: pointer; }
   font-weight: 520;
   color: var(--ink-soft);
 }
+
+.series-index { font-size: 1.35rem; }
 
 .series-title {
   font-family: var(--serif);
@@ -342,22 +344,32 @@ button { cursor: pointer; }
   object-fit: contain;
 }
 
-.offers { display: grid; gap: 0.75rem; margin-top: 0.9rem; }
+.offers { display: grid; gap: 0.85rem; margin-top: 1rem; }
 
 .offer {
-  display: grid;
-  grid-template-columns: 7.5rem 8rem 1fr auto auto;
-  gap: 0.75rem;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
+  gap: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
 }
 
-.offer-kind { font-weight: 400; }
+.offer-kind { display: block; font-weight: 400; }
+
+.offer-meta {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--ink-soft);
+}
 
 .solid,
 .ghost {
+  flex: 0 0 auto;
   border: 1px solid var(--ink);
   padding: 0.55rem 0.8rem;
   letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .solid { background: var(--ink); color: var(--dark); }
@@ -398,7 +410,7 @@ dialog {
 
 #request-dialog { width: min(560px, calc(100vw - 1.5rem)); }
 
-dialog::backdrop { background: rgba(0, 0, 0, 0.78); }
+dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
 
 .viewer-layout,
 .request-panel { padding: 1.25rem; }
@@ -448,8 +460,15 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.78); }
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0.3rem 1rem;
+  align-items: center;
   padding: 0.8rem 0;
   border-top: 1px solid var(--line);
+}
+
+.request-side {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
 }
 
 .qty {
@@ -517,8 +536,9 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.78); }
   .hero-inner,
   .viewer-layout,
   .shop-item,
-  .offer,
   .works { grid-template-columns: 1fr; }
+
+  .offer { align-items: flex-start; }
 
   .works .work:nth-child(3n + 1) { grid-column: auto; }
 

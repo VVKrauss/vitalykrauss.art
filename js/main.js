@@ -116,7 +116,9 @@
     requestSent = true;
     updateCount();
     renderRequest();
-    window.location.href = href;
+    const mail = document.createElement("a");
+    mail.href = href;
+    mail.click();
   }
 
   function onBackdrop(event) {
@@ -219,10 +221,13 @@
       return entry.workId === item.id && entry.kind === itemOffer.kind;
     });
     const label = sold ? t("status.sold") : inRequest ? t("added") : t("add");
-    return '<div class="offer"><span class="offer-kind">' + escapeHtml(t("kind." + itemOffer.kind)) + "</span>"
-      + "<span>" + escapeHtml(itemOffer.size) + "</span>"
-      + "<span>" + escapeHtml(itemOffer.edition === 1 ? t("unique") : tf("edition", { n: itemOffer.edition })) + "</span>"
-      + "<span>" + money(itemOffer.price) + "</span>"
+    const meta = [
+      itemOffer.size,
+      itemOffer.edition === 1 ? t("unique") : tf("edition", { n: itemOffer.edition }),
+      money(itemOffer.price)
+    ].join(" · ");
+    return '<div class="offer"><div><span class="offer-kind">' + escapeHtml(t("kind." + itemOffer.kind)) + "</span>"
+      + '<span class="offer-meta">' + escapeHtml(meta) + "</span></div>"
       + '<button type="button" class="' + (sold ? "ghost" : "solid") + '" data-add="' + item.id + '" data-kind="' + itemOffer.kind + '"'
       + (sold ? " disabled" : "") + ">" + escapeHtml(label) + "</button></div>";
   }
@@ -253,11 +258,11 @@
       const itemOffer = found.work.offers.find(function (offer) { return offer.kind === entry.kind; });
       const painting = entry.kind === "painting";
       return "<li><div><strong>" + escapeHtml(found.work.title[lang]) + "</strong><div>"
-        + escapeHtml(t("kind." + entry.kind) + " · " + itemOffer.size) + "</div></div><div>"
+        + escapeHtml(t("kind." + entry.kind) + " · " + itemOffer.size) + "</div></div><div class=\"request-side\">"
         + (painting ? "" : '<span class="qty"><button type="button" data-qty="-1" data-id="' + entry.workId + '" data-kind="' + entry.kind + '">−</button><span>'
-          + entry.qty + '</span><button type="button" data-qty="1" data-id="' + entry.workId + '" data-kind="' + entry.kind + '">+</button></span> ')
-        + money(itemOffer.price * entry.qty)
-        + ' <button type="button" class="icon-button" data-remove="' + entry.workId + '" data-kind="' + entry.kind + '">'
+          + entry.qty + '</span><button type="button" data-qty="1" data-id="' + entry.workId + '" data-kind="' + entry.kind + '">+</button></span>')
+        + "<span>" + money(itemOffer.price * entry.qty) + "</span>"
+        + '<button type="button" class="icon-button" data-remove="' + entry.workId + '" data-kind="' + entry.kind + '">'
         + escapeHtml(t("remove")) + "</button></div></li>";
     }).join("");
     const form = requestSent
@@ -277,8 +282,10 @@
   }
 
   function field(name, label, type, required) {
+    const inputType = type === "email" ? "text" : type;
+    const extra = type === "email" ? ' inputmode="email" autocomplete="email"' : "";
     return "<label>" + escapeHtml(label)
-      + '<input name="' + name + '" type="' + type + '"' + (required ? " required" : "") + "></label>";
+      + '<input name="' + name + '" type="' + inputType + '"' + extra + (required ? " required" : "") + "></label>";
   }
 
   function addItem(workId, kind) {
