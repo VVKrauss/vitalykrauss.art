@@ -34,21 +34,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: Attach custom domain
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set +e
-          gh api --method PUT "repos/${{ github.repository }}/pages" \
-            -f cname='vitalykrauss.art' \
-            -F https_enforced=false > /tmp/pages-domain.json
-          status=$?
-          set -e
-          if [ "$status" -ne 0 ]; then
-            echo "Apex domain was rejected. Attaching www.vitalykrauss.art."
-            gh api --method PUT "repos/${{ github.repository }}/pages" \
-              -f cname='www.vitalykrauss.art' \
-              -F https_enforced=false
-          else
-            cat /tmp/pages-domain.json
-          fi
