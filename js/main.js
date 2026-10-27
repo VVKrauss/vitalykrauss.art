@@ -7,14 +7,18 @@
   const viewerBody = document.querySelector("#viewer-body");
   const requestDialog = document.querySelector("#request-dialog");
   const requestBody = document.querySelector("#request-body");
-  const countNode = document.querySelector("#request-count");
   const heroImage = document.querySelector("#hero-image");
 
   const openSeries = new Set(["insecterra", "with-yudochkina"]);
   const slideAt = {};
   const request = [];
-  let lang = localStorage.getItem("vk-lang") || "en";
+  let lang = readPreference("vk-lang") || "en";
+  let shopAt = 0;
+  let shopSize = "standard";
+  let touchStart = null;
   let openWorkId = null;
+  let viewerOrigin = null;
+  let requestOrigin = "review-request";
   let requestSent = false;
 
   if (!["en", "ru", "es"].includes(lang)) lang = "en";
@@ -22,17 +26,60 @@
   document.addEventListener("click", onClick);
   document.addEventListener("keydown", onKeydown);
   document.addEventListener("submit", onSubmit);
+  document.addEventListener("touchstart", function (event) {
+    const gallery = event.target.closest(".slide-frame[data-slideshow]");
+    touchStart = gallery && event.touches.length === 1
+      ? { id: gallery.dataset.slideshow, x: event.touches[0].clientX, y: event.touches[0].clientY }
+      : null;
+  }, { passive: true });
+  document.addEventListener("touchend", function (event) {
+    if (!touchStart || !event.changedTouches.length) return;
+    const dx = event.changedTouches[0].clientX - touchStart.x;
+    const dy = event.changedTouches[0].clientY - touchStart.y;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      stepSlide(touchStart.id, dx < 0 ? 1 : -1, null, false);
+    }
+    touchStart = null;
+  }, { passive: true });
+  document.addEventListener("touchcancel", function () { touchStart = null; }, { passive: true });
   viewer.addEventListener("click", onBackdrop);
   requestDialog.addEventListener("click", onBackdrop);
-  viewer.addEventListener("close", function () { openWorkId = null; });
+  viewer.addEventListener("close", function () {
+    openWorkId = null;
+    const origin = viewerOrigin && document.querySelector(viewerOrigin);
+    if (origin) origin.focus({ preventScroll: true });
+  });
+  requestDialog.addEventListener("close", function () {
+    const origin = document.getElementById(requestOrigin);
+    if (origin) origin.focus({ preventScroll: true });
+  });
 
   render();
 
   function onClick(event) {
+    if (event.target.closest("#theme-toggle")) {
+      const style = document.createElement("style");
+      style.textContent = "*,*::before,*::after{transition:none !important}";
+      document.head.append(style);
+      const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = theme;
+      writePreference("vk-theme", theme);
+      updateTheme();
+      void document.body.offsetHeight;
+      requestAnimationFrame(function () { requestAnimationFrame(function () { style.remove(); }); });
+      return;
+    }
+    const sizeButton = event.target.closest("[data-shop-size]");
+    if (sizeButton) {
+      shopSize = sizeButton.dataset.shopSize;
+      renderShop();
+      shopRoot.querySelector('[data-shop-size="' + shopSize + '"]').focus({ preventScroll: true });
+      return;
+    }
     const langButton = event.target.closest("[data-lang]");
     if (langButton) {
       lang = langButton.dataset.lang;
-      localStorage.setItem("vk-lang", lang);
+      writePreference("vk-lang", lang);
       render();
       return;
     }
@@ -43,9 +90,9 @@
       return;
     }
 
-    const dotButton = event.target.closest("[data-go]");
-    if (dotButton) {
-      stepSlide(dotButton.dataset.slideshow, 0, Number(dotButton.dataset.go));
+    const thumbnailButton = event.target.closest("[data-go]");
+    if (thumbnailButton) {
+      stepSlide(thumbnailButton.dataset.slideshow, 0, Number(thumbnailButton.dataset.go));
       return;
     }
 
@@ -55,6 +102,7 @@
       if (openSeries.has(id)) openSeries.delete(id);
       else openSeries.add(id);
       renderSeries();
+      seriesRoot.querySelector('[data-series-toggle="' + id + '"]').focus({ preventScroll: true });
       return;
     }
 
@@ -66,13 +114,7 @@
 
     const addButton = event.target.closest("[data-add]");
     if (addButton) {
-      addItem(addButton.dataset.add, addButton.dataset.kind);
-      return;
-    }
-
-    if (event.target.closest("#open-request")) {
-      requestSent = false;
-      openRequest();
+      addItem(addButton.dataset.add, addButton.dataset.variant);
       return;
     }
 
@@ -81,12 +123,12 @@
 
     const qtyButton = event.target.closest("[data-qty]");
     if (qtyButton) {
-      changeQty(qtyButton.dataset.id, qtyButton.dataset.kind, Number(qtyButton.dataset.qty));
+      changeQty(qtyButton.dataset.id, qtyButton.dataset.variant, Number(qtyButton.dataset.qty));
       return;
     }
 
     if (event.target.closest("[data-remove]")) {
-      removeItem(event.target.closest("[data-remove]").dataset.remove, event.target.closest("[data-remove]").dataset.kind);
+      removeItem(event.target.closest("[data-remove]").dataset.remove, event.target.closest("[data-remove]").dataset.variant);
     }
   }
 
@@ -113,11 +155,11 @@
     }
     const lines = request.map(function (item) {
       const found = findWork(item.workId);
-      const offer = found.work.offers.find(function (entry) { return entry.kind === item.kind; });
+      const offer = found.work.offers.find(function (entry) { return entry.id === item.variantId; });
       return [
         found.work.title[lang],
-        t("kind." + item.kind),
-        offer.size,
+        t("kind.print"),
+        sizeText(offer.size),
         money(offer.price),
         "× " + item.qty
       ].join(" — ");
@@ -134,7 +176,6 @@
     const href = "mailto:" + SITE.email
       + "?subject=" + encodeURIComponent("Vitaly Krauss — " + t("request.title"))
       + "&body=" + encodeURIComponent(body);
-    request.length = 0;
     requestSent = true;
     updateCount();
     renderRequest();
@@ -163,6 +204,7 @@
     });
     const heroWork = findWork("snail");
     heroImage.alt = altText(heroWork.work, heroWork.series);
+    updateTheme();
     renderSeries();
     renderExhibitions();
     renderShop();
@@ -184,9 +226,11 @@
       : "";
     const body = open
       ? '<div class="series-body" id="body-' + series.id + '">'
-        + '<div class="statement">' + series.statement[lang].map(function (paragraph) {
+        + '<div class="statement"><p>' + escapeHtml(series.statement[lang][0]) + '</p>'
+        + (series.statement[lang].length > 1 ? '<details><summary>' + escapeHtml(t("series.about")) + '</summary>'
+        + series.statement[lang].slice(1).map(function (paragraph) {
           return "<p>" + escapeHtml(paragraph) + "</p>";
-        }).join("") + "</div>"
+        }).join("") + '</details>' : '') + "</div>"
         + renderSlideshow(series) + "</div>"
       : '<div class="series-body" id="body-' + series.id + '" hidden></div>';
     return '<article class="series">'
@@ -194,7 +238,7 @@
       + '<button type="button" class="series-toggle" data-series-toggle="' + series.id + '" aria-expanded="' + open + '" aria-controls="body-' + series.id + '">'
       + '<span class="series-index">' + series.index + "</span>"
       + '<span class="series-title">' + escapeHtml(title) + "</span>"
-      + '<span class="series-count">' + escapeHtml(tf("series.count", { n: series.works.length })) + "</span>"
+      + '<span class="series-count">' + escapeHtml(tf("series.count", { n: series.works.length })) + '<span class="series-indicator" aria-hidden="true">' + (open ? '−' : '+') + '</span></span>'
       + "</button>"
       + withLine
       + body
@@ -204,21 +248,39 @@
   function renderSlideshow(series) {
     const count = series.works.length;
     const index = ((slideAt[series.id] || 0) % count + count) % count;
-    const item = series.works[index];
-    const dots = series.works.map(function (_, dotIndex) {
-      return '<button type="button" class="slide-dot" data-go="' + dotIndex + '" data-slideshow="' + series.id + '" aria-label="' + (dotIndex + 1) + '" aria-current="' + (dotIndex === index) + '"></button>';
-    }).join("");
-    return '<div class="slideshow" data-slideshow="' + series.id + '" tabindex="0">'
-      + '<div class="slide-frame"><button type="button" class="work" data-open-work="' + item.id + '">'
-      + '<img src="' + item.image + '" width="' + item.width + '" height="' + item.height + '" alt="' + escapeHtml(altText(item, series)) + '">'
-      + "</button></div>"
-      + '<div class="slide-bar"><button type="button" class="slide-arrow" data-step="-1" data-slideshow="' + series.id + '" aria-label="' + escapeHtml(t("slide.prev")) + '">‹</button>'
-      + '<p class="slide-caption"><span class="work-index">' + pad(index + 1) + '</span><span class="work-name">' + escapeHtml(item.title[lang]) + "</span></p>"
-      + '<button type="button" class="slide-arrow" data-step="1" data-slideshow="' + series.id + '" aria-label="' + escapeHtml(t("slide.next")) + '">›</button></div>'
-      + '<div class="slide-dots">' + dots + "</div></div>";
+    return renderGallery(series.id, series.works, index, series);
   }
 
-  function stepSlide(seriesId, delta, absoluteIndex) {
+  function arrowIcon(previous) {
+    return '<svg class="icon' + (previous ? ' icon-prev' : '') + '" aria-hidden="true"><use href="#icon-arrow"/></svg>';
+  }
+
+  function renderGallery(id, works, index, series) {
+    const item = works[index];
+    const title = item.title[lang];
+    const thumbnails = works.map(function (work, thumbIndex) {
+      return '<button type="button" class="slide-thumb" data-go="' + thumbIndex + '" data-slideshow="' + id + '" aria-label="' + escapeHtml(work.title[lang]) + '" aria-current="' + (thumbIndex === index) + '">'
+        + '<img src="' + work.image + '" alt="" loading="lazy" width="' + work.width + '" height="' + work.height + '"></button>';
+    }).join("");
+    return '<div class="slideshow" data-slideshow="' + id + '" role="region" aria-roledescription="' + escapeHtml(t("slide.gallery")) + '" aria-label="' + escapeHtml(series ? seriesTitle(series) : t("shop.label")) + '" tabindex="0">'
+      + '<div class="slide-frame" data-slideshow="' + id + '"><button type="button" class="work" data-open-work="' + item.id + '" aria-label="' + escapeHtml(t("slide.enlarge") + ': ' + title) + '">'
+      + '<img src="' + item.image + '" width="' + item.width + '" height="' + item.height + '" alt="' + escapeHtml(title) + '" loading="lazy">'
+      + "</button></div>"
+      + '<div class="slide-bar"><p class="slide-caption" aria-live="polite" aria-atomic="true"><span class="work-name">' + escapeHtml(title) + '</span><span class="slide-position">' + pad(index + 1) + ' / ' + pad(works.length) + '</span></p>'
+      + '<div class="slide-controls"><button type="button" class="slide-arrow" data-step="-1" data-slideshow="' + id + '" aria-label="' + escapeHtml(t("slide.prev")) + '">' + arrowIcon(true) + '</button>'
+      + '<button type="button" class="slide-arrow" data-step="1" data-slideshow="' + id + '" aria-label="' + escapeHtml(t("slide.next")) + '">' + arrowIcon(false) + '</button></div></div>'
+      + '<div class="slide-thumbnails" aria-label="' + escapeHtml(t("slide.thumbnails")) + '">' + thumbnails + '</div></div>';
+  }
+
+  function stepSlide(seriesId, delta, absoluteIndex, restoreFocus) {
+    if (seriesId === "shop") {
+      const count = shopEntries().length;
+      shopAt = absoluteIndex == null ? (shopAt + delta + count) % count : ((absoluteIndex % count) + count) % count;
+      renderShop();
+      if (restoreFocus !== false) focusGallery(shopRoot, seriesId, delta, absoluteIndex, shopAt);
+      else revealThumbnail(shopRoot, seriesId);
+      return;
+    }
     const series = SITE.series.find(function (entry) { return entry.id === seriesId; });
     if (!series) return;
     const count = series.works.length;
@@ -226,12 +288,27 @@
     slideAt[seriesId] = absoluteIndex == null
       ? (current + delta + count) % count
       : ((absoluteIndex % count) + count) % count;
-    renderSeries();
+    const gallery = seriesRoot.querySelector('.slideshow[data-slideshow="' + seriesId + '"]');
+    if (gallery) gallery.outerHTML = renderSlideshow(series);
+    if (restoreFocus !== false) focusGallery(seriesRoot, seriesId, delta, absoluteIndex, slideAt[seriesId]);
+    else revealThumbnail(seriesRoot, seriesId);
+  }
+
+  function focusGallery(root, seriesId, delta, absoluteIndex, index) {
     const focusSelector = absoluteIndex == null
       ? '[data-slideshow="' + seriesId + '"] [data-step="' + delta + '"]'
-      : '[data-slideshow="' + seriesId + '"] [data-go="' + slideAt[seriesId] + '"]';
-    const focusTarget = seriesRoot.querySelector(focusSelector);
-    if (focusTarget) focusTarget.focus();
+      : '[data-slideshow="' + seriesId + '"] [data-go="' + index + '"]';
+    const focusTarget = root.querySelector(focusSelector);
+    if (focusTarget) focusTarget.focus({ preventScroll: true });
+    revealThumbnail(root, seriesId);
+  }
+
+  function revealThumbnail(root, seriesId) {
+    const active = root.querySelector('.slideshow[data-slideshow="' + seriesId + '"] [aria-current="true"]');
+    if (active) {
+      const strip = active.parentElement;
+      strip.scrollLeft = Math.max(0, active.offsetLeft - strip.offsetLeft - strip.clientWidth / 2 + active.clientWidth / 2);
+    }
   }
 
   function renderExhibitions() {
@@ -243,44 +320,71 @@
       }).join("");
   }
 
-  function renderShop() {
-    const items = SITE.series.flatMap(function (series) {
+  function shopEntries() {
+    return SITE.series.flatMap(function (series) {
       return series.works.map(function (item) { return { item: item, series: series }; });
     });
+  }
+
+  function renderShop() {
+    const active = shopRoot.contains(document.activeElement) ? document.activeElement : null;
+    const focusSelector = active && active.hasAttribute("data-add")
+      ? '[data-add="' + active.dataset.add + '"][data-variant="' + active.dataset.variant + '"]'
+      : active && active.hasAttribute("data-shop-size")
+        ? '[data-shop-size="' + active.dataset.shopSize + '"]'
+        : null;
+    const previousStrip = shopRoot.querySelector(".slide-thumbnails");
+    const stripScroll = previousStrip ? previousStrip.scrollLeft : 0;
+    const items = shopEntries();
+    const entry = items[shopAt];
+    const selectedOffer = entry.item.offers.find(function (offer) { return offer.id === shopSize; }) || entry.item.offers[0];
+    shopSize = selectedOffer.id;
     shopRoot.innerHTML = '<p class="section-label">' + escapeHtml(t("shop.label")) + "</p>"
-      + '<p class="shop-intro">' + escapeHtml(t("shop.intro")) + "</p>"
-      + items.map(function (entry) {
-        return '<article class="shop-item">'
-          + '<button type="button" class="shop-thumb" data-open-work="' + entry.item.id + '">'
-          + '<img src="' + entry.item.image + '" alt="' + escapeHtml(altText(entry.item, entry.series)) + '">'
-          + "</button><div class=\"shop-copy\"><h3>" + escapeHtml(entry.item.title[lang]) + "</h3>"
-          + '<p class="shop-series">' + escapeHtml(seriesTitle(entry.series)) + "</p>"
-          + '<div class="offers">' + entry.item.offers.map(function (itemOffer) {
-            return renderOffer(entry.item, itemOffer);
-          }).join("") + "</div></div></article>";
-      }).join("");
+      + '<div class="shop-heading"><h2>' + escapeHtml(t("shop.heading")) + '</h2><p class="shop-intro">' + escapeHtml(t("shop.intro")) + '</p></div>'
+      + '<div class="shop-layout">' + renderGallery("shop", items.map(function (value) { return value.item; }), shopAt)
+      + '<article class="shop-copy"><p class="eyebrow">' + escapeHtml(seriesTitle(entry.series)) + ' / ' + entry.item.year + '</p>'
+      + '<h3>' + escapeHtml(entry.item.title[lang]) + '</h3>'
+      + '<div class="size-picker" role="group" aria-label="' + escapeHtml(t("shop.size")) + '">'
+      + entry.item.offers.map(function (offer) {
+        return '<button type="button" data-shop-size="' + offer.id + '" aria-pressed="' + (offer.id === shopSize) + '">' + escapeHtml(sizeText(offer.size)) + '</button>';
+      }).join('') + '</div>'
+      + '<div class="shop-selection" aria-live="polite">' + renderOffer(entry.item, selectedOffer) + '</div>'
+      + '<p class="shop-note">' + escapeHtml(t("shop.note")) + '</p>'
+      + '<a class="text-link shop-request" href="#shop" id="review-request">' + escapeHtml(t("request.review")) + '<span id="request-count" hidden>0</span>' + arrowIcon(false) + '</a>'
+      + '</article></div>';
+    shopRoot.querySelector(".slide-thumbnails").scrollLeft = stripScroll;
+    updateCount();
+    const focusTarget = focusSelector && shopRoot.querySelector(focusSelector);
+    if (focusTarget) focusTarget.focus({ preventScroll: true });
+    shopRoot.querySelector("#review-request").addEventListener("click", function (event) {
+      event.preventDefault();
+      requestSent = false;
+      openRequest();
+    });
   }
 
   function renderOffer(item, itemOffer) {
     const sold = itemOffer.status === "sold";
     const inRequest = request.some(function (entry) {
-      return entry.workId === item.id && entry.kind === itemOffer.kind;
+      return entry.workId === item.id && entry.variantId === itemOffer.id;
     });
     const label = sold ? t("status.sold") : inRequest ? t("added") : t("add");
-    const meta = [
-      itemOffer.size,
-      itemOffer.edition === 1 ? t("unique") : tf("edition", { n: itemOffer.edition }),
-      money(itemOffer.price)
-    ].join(" · ");
-    return '<div class="offer"><div><span class="offer-kind">' + escapeHtml(t("kind." + itemOffer.kind)) + "</span>"
-      + '<span class="offer-meta">' + escapeHtml(meta) + "</span></div>"
-      + '<button type="button" class="' + (sold ? "ghost" : "solid") + '" data-add="' + item.id + '" data-kind="' + itemOffer.kind + '"'
+    const meta = tf("edition", { n: itemOffer.edition });
+    return '<div class="offer"><div><span class="offer-size">' + escapeHtml(sizeText(itemOffer.size)) + "</span>"
+      + '<span class="offer-meta">' + escapeHtml(meta) + '</span><span class="offer-price">' + escapeHtml(money(itemOffer.price)) + '</span></div>'
+      + '<button type="button" class="' + (sold ? "ghost" : "solid") + '" data-add="' + item.id + '" data-variant="' + itemOffer.id + '"'
       + (sold ? " disabled" : "") + ">" + escapeHtml(label) + "</button></div>";
   }
 
   function openViewer(workId) {
     const found = findWork(workId);
     if (!found) return;
+    if (!viewer.open) {
+      const originGallery = document.activeElement.closest(".slideshow");
+      viewerOrigin = originGallery
+        ? '.slideshow[data-slideshow="' + originGallery.dataset.slideshow + '"] [data-open-work="' + workId + '"]'
+        : null;
+    }
     openWorkId = workId;
     viewerBody.innerHTML = '<div class="viewer-layout"><img src="' + found.work.image + '" alt="'
       + escapeHtml(altText(found.work, found.series)) + '"><div class="viewer-copy"><div class="viewer-tools"><p class="eyebrow">'
@@ -294,6 +398,7 @@
   }
 
   function openRequest() {
+    if (!requestDialog.open) requestOrigin = document.activeElement.id || "review-request";
     renderRequest();
     if (!requestDialog.open) requestDialog.showModal();
   }
@@ -301,14 +406,13 @@
   function renderRequest() {
     const items = request.map(function (entry) {
       const found = findWork(entry.workId);
-      const itemOffer = found.work.offers.find(function (offer) { return offer.kind === entry.kind; });
-      const painting = entry.kind === "painting";
+      const itemOffer = found.work.offers.find(function (offer) { return offer.id === entry.variantId; });
       return "<li><div><strong>" + escapeHtml(found.work.title[lang]) + "</strong><div>"
-        + escapeHtml(t("kind." + entry.kind) + " · " + itemOffer.size) + "</div></div><div class=\"request-side\">"
-        + (painting ? "" : '<span class="qty"><button type="button" data-qty="-1" data-id="' + entry.workId + '" data-kind="' + entry.kind + '">−</button><span>'
-          + entry.qty + '</span><button type="button" data-qty="1" data-id="' + entry.workId + '" data-kind="' + entry.kind + '">+</button></span>')
+        + escapeHtml(t("kind.print") + " · " + sizeText(itemOffer.size)) + "</div></div><div class=\"request-side\">"
+        + ('<span class="qty"><button type="button" data-qty="-1" data-id="' + entry.workId + '" data-variant="' + entry.variantId + '">−</button><span>'
+          + entry.qty + '</span><button type="button" data-qty="1" data-id="' + entry.workId + '" data-variant="' + entry.variantId + '">+</button></span>')
         + "<span>" + money(itemOffer.price * entry.qty) + "</span>"
-        + '<button type="button" class="icon-button" data-remove="' + entry.workId + '" data-kind="' + entry.kind + '">'
+        + '<button type="button" class="icon-button" data-remove="' + entry.workId + '" data-variant="' + entry.variantId + '">'
         + escapeHtml(t("remove")) + "</button></div></li>";
     }).join("");
     const form = requestSent
@@ -334,15 +438,15 @@
       + '<input name="' + name + '" type="' + inputType + '"' + extra + (required ? " required" : "") + "></label>";
   }
 
-  function addItem(workId, kind) {
+  function addItem(workId, variantId) {
     const found = findWork(workId);
-    const itemOffer = found.work.offers.find(function (entry) { return entry.kind === kind; });
+    const itemOffer = found.work.offers.find(function (entry) { return entry.id === variantId; });
     if (!itemOffer || itemOffer.status === "sold") return;
-    const existing = request.find(function (entry) { return entry.workId === workId && entry.kind === kind; });
+    const existing = request.find(function (entry) { return entry.workId === workId && entry.variantId === variantId; });
     if (existing) {
-      if (kind === "print") existing.qty += 1;
+      existing.qty += 1;
     } else {
-      request.push({ workId: workId, kind: kind, qty: 1 });
+      request.push({ workId: workId, variantId: variantId, qty: 1 });
     }
     requestSent = false;
     updateCount();
@@ -351,18 +455,18 @@
     if (requestDialog.open) renderRequest();
   }
 
-  function changeQty(workId, kind, delta) {
-    const existing = request.find(function (entry) { return entry.workId === workId && entry.kind === kind; });
-    if (!existing || kind === "painting") return;
+  function changeQty(workId, variantId, delta) {
+    const existing = request.find(function (entry) { return entry.workId === workId && entry.variantId === variantId; });
+    if (!existing) return;
     existing.qty += delta;
-    if (existing.qty < 1) removeItem(workId, kind);
+    if (existing.qty < 1) removeItem(workId, variantId);
     else renderRequest();
     updateCount();
     renderShop();
   }
 
-  function removeItem(workId, kind) {
-    const index = request.findIndex(function (entry) { return entry.workId === workId && entry.kind === kind; });
+  function removeItem(workId, variantId) {
+    const index = request.findIndex(function (entry) { return entry.workId === workId && entry.variantId === variantId; });
     if (index >= 0) request.splice(index, 1);
     updateCount();
     renderShop();
@@ -372,14 +476,17 @@
 
   function updateCount() {
     const count = request.reduce(function (sum, entry) { return sum + entry.qty; }, 0);
-    countNode.textContent = String(count);
-    countNode.hidden = count === 0;
+    const countNode = shopRoot.querySelector("#request-count");
+    if (countNode) {
+      countNode.textContent = String(count);
+      countNode.hidden = count === 0;
+    }
   }
 
   function total() {
     return request.reduce(function (sum, entry) {
       const found = findWork(entry.workId);
-      const itemOffer = found.work.offers.find(function (offer) { return offer.kind === entry.kind; });
+      const itemOffer = found.work.offers.find(function (offer) { return offer.id === entry.variantId; });
       return sum + itemOffer.price * entry.qty;
     }, 0);
   }
@@ -401,6 +508,10 @@
     return item.title[lang] + ", " + seriesTitle(series);
   }
 
+  function sizeText(size) {
+    return size.replace(/cm$/, t("unit.cm"));
+  }
+
   function money(amount) {
     const locale = lang === "ru" ? "ru-RU" : lang === "es" ? "es-ES" : "en-GB";
     return new Intl.NumberFormat(locale, {
@@ -408,6 +519,20 @@
       currency: SITE.currency,
       maximumFractionDigits: 0
     }).format(amount);
+  }
+
+  function readPreference(key) {
+    try { return localStorage.getItem(key); } catch (_) { return null; }
+  }
+
+  function writePreference(key, value) {
+    try { localStorage.setItem(key, value); } catch (_) {}
+  }
+
+  function updateTheme() {
+    const dark = document.documentElement.dataset.theme === "dark";
+    document.querySelector("#theme-toggle").setAttribute("aria-label", t(dark ? "theme.light" : "theme.dark"));
+    document.querySelector('meta[name="theme-color"]').content = dark ? "#191a18" : "#f5f2eb";
   }
 
   function t(key) {
