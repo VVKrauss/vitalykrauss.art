@@ -100,9 +100,9 @@ export async function createStudio(config) {
   app.use((req, res) => res.status(404).json({ error: 'Not found' }));
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);
-    if (error instanceof ContentError) return res.status(error.status).json({ error: error.message });
-    if (error.type === 'entity.too.large') return res.status(413).json({ error: 'Слишком много данных в каталоге.' });
-    if (error.type === 'entity.parse.failed') return res.status(400).json({ error: 'Некорректные данные каталога.' });
+    if (error instanceof ContentError) return res.status(error.status).json({ error: error.message,...(error.code?{code:error.code}:{}) });
+    if (error.type === 'entity.too.large') return res.status(413).json(req.path==='/api/requests'?{error:'Request too large.',code:'tooLarge'}:{ error: 'Слишком много данных в каталоге.' });
+    if (error.type === 'entity.parse.failed') return res.status(400).json(req.path==='/api/requests'?{error:'Invalid request.',code:'invalid'}:{ error: 'Некорректные данные каталога.' });
     res.status(500).json({ error: 'Service unavailable' });
   });
 

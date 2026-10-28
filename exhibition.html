@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Vitaly Krauss</title>
-  <meta name="description" content="Vitaly Krauss, digital artist. Series, exhibitions, prints.">
+  <title>Art catalogue</title>
+  <meta name="description" content="">
   <meta name="theme-color" content="#f5f2eb">
   <script>
     try {
@@ -28,9 +28,9 @@
   </svg>
   <a class="skip" href="index.html#series" data-i18n="skip">Skip to works</a>
   <header class="site-header">
-    <a class="wordmark brand-logo" href="index.html" aria-label="Vitaly Krauss"><img src="images/logo-vk.png" alt="" width="54" height="54"></a>
-    <button type="button" id="menu-toggle" class="icon-button menu-toggle" aria-label="Menu" aria-expanded="false" aria-controls="site-navigation"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-    <nav id="site-navigation" class="site-nav" aria-label="Vitaly Krauss">
+    <a class="wordmark brand-logo" href="index.html" aria-label="Art catalogue"><img src="images/logo-vk.png" alt="" width="54" height="54"></a>
+    <button type="button" id="menu-toggle" class="icon-button menu-toggle" data-i18n-aria="menu.label" aria-label="Menu" aria-expanded="false" aria-controls="site-navigation"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    <nav id="site-navigation" class="site-nav" data-i18n-aria="nav.label" aria-label="Navigation">
       <a href="index.html#series" data-i18n="nav.series">Series</a>
       <a href="index.html#exhibitions" data-i18n="nav.exhibitions">Exhibitions</a>
       <a href="index.html#shop" data-i18n="nav.shop">Shop</a>
@@ -50,14 +50,15 @@
     </div>
   </header>
 
-  <main id="exhibition-page" class="exhibition-page" aria-live="polite"><p>Loading exhibition…</p></main>
+  <main id="exhibition-page" class="exhibition-page" aria-live="polite"><p data-i18n="exhibition.loading">Loading exhibition…</p></main>
   <footer class="site-footer">
     <div class="footer-inner">
-      <p>made with love by redflow d</p>
+      <p data-i18n="footer.credit">made with love by redflow d</p>
     </div>
   </footer>
 
-  <dialog id="exhibition-viewer" aria-label="Image preview"><div class="photo-viewer-tools"><button type="button" class="ghost" data-close-photo>Close ×</button><div class="slide-controls"><button type="button" class="slide-arrow" data-photo-step="-1" aria-label="Previous"><svg class="icon icon-prev" aria-hidden="true"><use href="#icon-arrow"/></svg></button><span data-photo-counter></span><button type="button" class="slide-arrow" data-photo-step="1" aria-label="Next"><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></button></div></div><img alt=""><p></p></dialog>
+  <dialog id="exhibition-viewer" data-i18n-aria="exhibition.preview" aria-label="Image preview"><div class="photo-viewer-tools"><button type="button" class="ghost" data-close-photo>Close ×</button><div class="slide-controls"><button type="button" class="slide-arrow" data-photo-step="-1" data-i18n-aria="slide.prev" aria-label="Previous"><svg class="icon icon-prev" aria-hidden="true"><use href="#icon-arrow"/></svg></button><span data-photo-counter></span><button type="button" class="slide-arrow" data-photo-step="1" data-i18n-aria="slide.next" aria-label="Next"><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></button></div></div><img alt=""><p></p></dialog>
+  <script src="js/i18n.js"></script>
   <script src="js/content.js"></script>
   <script src="js/cart.js"></script>
   <script src="js/exhibition.js"></script>

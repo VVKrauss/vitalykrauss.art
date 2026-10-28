@@ -7,7 +7,7 @@
   const viewerBody = document.querySelector("#viewer-body");
   const heroImage = document.querySelector("#hero-image");
 
-  const openSeries = new Set(["insecterra", "with-yudochkina"]);
+  const openSeries = new Set();
   const slideAt = Object.create(null);
   const request = window.VKCart.items;
   let lang = readPreference("vk-lang") || "en";
@@ -49,26 +49,26 @@
   });
 
 
-  let cataloguePending = false, catalogueRevision = '';
-  Object.assign(SITE, normalizeCatalogue(SITE, true));
+  let cataloguePending = false, catalogueRevision = '',catalogueFailed=false;
   render();
   async function refreshCatalogue() {
     if (cataloguePending) return;
-    cataloguePending = true;
+    cataloguePending = true;renderStatus();
     try {
-      const response = await fetch('https://studio.vitalykrauss.art/api/catalogue', {credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(20000)});
+      const response = await fetch(window.STUDIO_URL+'/api/catalogue', {credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(20000)});
       if (!response.ok) throw new Error('Catalogue unavailable');
       const data = await response.json();
       if (!data.publishedAt || !Array.isArray(data.works) || !Array.isArray(data.series) || !Array.isArray(data.exhibitions)) throw new Error('Invalid catalogue');
       const revision = JSON.stringify(data);
-      if (catalogueRevision === revision) return;
-      const normalized = normalizeCatalogue(data, false);
+      catalogueFailed=false;
+      if (catalogueRevision === revision){renderStatus();return;}
+      const normalized = normalizeCatalogue(data);
       Object.assign(SITE, normalized); catalogueRevision = revision;
       SITE.series.forEach(s => openSeries.add(s.id));
       if (openWorkId && !findWork(openWorkId)) viewer.close();
       const selectedWork=readPreference('vk-shop-work');shopAt=Math.max(0,shopEntries().findIndex(entry=>entry.item.id===selectedWork));shopSize=readPreference('vk-shop-size') || '';render();
-    } catch (error) { console.warn('Catalogue refresh failed; will retry.',error.message); }
-    finally { cataloguePending=false; }
+    } catch (error) {catalogueFailed=true;renderStatus();console.warn('Catalogue refresh failed; will retry.',error.message);}
+    finally { cataloguePending=false;renderStatus(); }
   }
   refreshCatalogue();
   window.addEventListener('focus', refreshCatalogue);
@@ -76,6 +76,7 @@
   setInterval(() => { if (!document.hidden) refreshCatalogue(); }, 30000);
 
   function onClick(event) {
+    if(event.target.closest('[data-retry-catalogue]')){refreshCatalogue();return;}
     if(Date.now()<suppressClickUntil && event.target.closest('.work,#viewer img')){event.preventDefault();return;}
     const unitButton = event.target.closest('[data-unit]');
     if (unitButton) {
@@ -164,8 +165,7 @@
 
   function render() {
     document.documentElement.lang = lang;
-    document.title = t("meta.title");
-    document.querySelector('meta[name="description"]').setAttribute("content", t("meta.description"));
+    window.applyAuthor(SITE.about,lang);renderStatus();
     document.querySelectorAll("[data-i18n]").forEach(function (node) {
       node.textContent = t(node.dataset.i18n);
     });
@@ -181,18 +181,10 @@
     if (heroWork) {
       heroImage.src=heroWork.work.image; heroImage.width=heroWork.work.width; heroImage.height=heroWork.work.height;
       heroImage.alt=altText(heroWork.work,heroWork.series);
-      heroImage.closest("figure").querySelector("figcaption").innerHTML="<span>"+escapeHtml(heroWork.series.standalone ? "" : seriesTitle(heroWork.series))+"</span><span>"+escapeHtml(heroWork.work.title[lang]+" · "+heroWork.work.year)+"</span>";
+      heroImage.closest("figure").querySelector("figcaption").innerHTML="<span>"+escapeHtml(heroWork.series.standalone ? "" : seriesTitle(heroWork.series))+"</span><span>"+escapeHtml([heroWork.work.title[lang],heroWork.work.year].filter(Boolean).join(" · "))+"</span>";
       lede.textContent=heroWork.work.description[lang] || (heroWork.series.standalone ? "" : heroWork.series.statement[lang][0]);
     } else lede.textContent="";
     document.querySelectorAll('[data-unit]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.unit===units)));
-    if(SITE.about){
-      document.querySelector('#about-title').textContent=SITE.about.name[lang];
-      document.querySelector('#about-role').textContent=SITE.about.role[lang];
-      document.querySelector('.about-intro').textContent=SITE.about.intro[lang];
-      document.querySelector('.about-intro').nextElementSibling.textContent=SITE.about.description[lang];
-      const email=document.querySelector('#about-email');email.hidden=!SITE.about.email;email.href='mailto:'+SITE.about.email;email.querySelector('span').textContent=SITE.about.email;
-      const avatar=document.querySelector('#author-avatar');avatar.src=SITE.about.avatar || 'images/author.webp';avatar.alt=SITE.about.name[lang];
-    }
     window.VKCart.update(SITE.works,lang,units,Boolean(catalogueRevision));
     updateTheme();
     renderSeries();
@@ -203,9 +195,16 @@
 
   }
 
+  function renderStatus(){
+    const node=document.querySelector('#catalogue-status');document.querySelector('#catalogue-content').hidden=!catalogueRevision;
+    node.hidden=Boolean(catalogueRevision) && !catalogueFailed;
+    if(node.hidden)return;
+    const message=catalogueFailed?t(catalogueRevision?'catalogue.stale':'catalogue.error'):t('catalogue.loading');
+    node.innerHTML='<p>'+escapeHtml(message)+'</p>'+(catalogueFailed?'<button type="button" class="ghost" data-retry-catalogue '+(cataloguePending?'disabled':'')+'>'+escapeHtml(t('catalogue.retry'))+'</button>':'');
+  }
   function renderSeries() {
     seriesRoot.innerHTML = '<p class="section-label">' + escapeHtml(t("series.label")) + "</p>"
-      + SITE.series.map(renderOneSeries).join("");
+      + (SITE.series.length?SITE.series.map(renderOneSeries).join(""):(catalogueRevision?'<p>'+escapeHtml(t("catalogue.empty"))+"</p>":""));
   }
 
   function renderOneSeries(series) {
@@ -309,7 +308,7 @@
   function place(item) { return [item.venue[lang],item.city[lang]].filter(Boolean).join(", "); }
   function exhibitionPlaces(work) { return SITE.exhibitions.filter(e => e.workIds.includes(work.id)).map(place).filter(Boolean).join(" · "); }
   function renderExhibitions() {
-    const labels={en:{more:'View exhibition',link:'Exhibition website'},ru:{more:'О выставке',link:'Сайт выставки'},es:{more:'Ver exposición',link:'Web de la exposición'}}[lang];
+    const labels={more:t('exhibition.more'),link:t('exhibition.link')};
     exhibitionsRoot.innerHTML='<p class="section-label">'+escapeHtml(t('exhibitions.label'))+'</p>'+SITE.exhibitions.map(function(item) {
       const found=item.workIds.map(findWork).find(Boolean);
       const cover=found ? found.work.image : item.media?.[0]?.image;
@@ -423,7 +422,7 @@
   }
 
   function unitControls() {
-    const label={ru:'Единицы измерения',en:'Measurement units',es:'Unidades de medida'}[lang];
+    const label=t('units.label');
     return '<div class="measurement-units" role="group" aria-label="'+label+'"><button type="button" data-unit="cm" aria-pressed="'+(units==='cm')+'">cm</button><span aria-hidden="true">|</span><button type="button" data-unit="in" aria-pressed="'+(units==='in')+'">in</button></div>';
   }
 
@@ -460,7 +459,7 @@
   }
 
   function t(key) {
-    return SITE.strings[lang][key] || SITE.strings.en[key] || key;
+    return window.I18N.t(key,lang);
   }
 
   function tf(key, vars) {

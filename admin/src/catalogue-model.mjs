@@ -1,6 +1,6 @@
 import {defaultAbout} from './about.mjs';
 export class ContentError extends Error {
-  constructor(message, status = 400) { super(message); this.status = status; }
+  constructor(message, status = 400, code) { super(message); this.status = status;if(code)this.code=code; }
 }
 
 const fail = message => { throw new ContentError(message); };

@@ -332,3 +332,11 @@ test('About avatar stays private until publication and cannot be deleted with an
  const published=await (await s.req('/api/studio/publish',{method:'POST',body:{version:saved.version,draft:saved.draft}})).json();assert.equal((await s.req(`/media/${uploaded.id}/web.webp`,{anonymous:true})).status,200);
  const result=await s.req('/api/studio/delete',{method:'POST',body:{version:published.version,draft:published.draft,kind:'works',id:'work-new'}});assert.equal(result.status,200);assert.ok(s.catalogue.media.record(uploaded.id));assert.equal((await s.req(`/media/${uploaded.id}/web.webp`,{anonymous:true})).status,200);
 });
+
+test('request errors expose stable localization codes without requiring a server locale',async t=>{
+ const s=await fixture(t,true);const published=s.catalogue.published(),work=published.works.find(w=>w.sizes.some(v=>v.price)),variant=work.sizes.find(v=>v.price);
+ const body={clientRequestId:'66666666-6666-4666-8666-666666666666',email:'invalid',items:[{workId:work.id,variantId:variant.id,qty:1}]};
+ const send=()=>s.req('/api/requests',{method:'POST',body,anonymous:true,origin:'https://vitalykrauss.art'});
+ assert.equal((await (await send()).json()).code,'email');body.email='buyer@example.test';body.items[0].quotedPrice=variant.price+1;assert.equal((await (await send()).json()).code,'priceChanged');
+ const forbidden=await s.req('/api/requests',{method:'POST',body,anonymous:true,origin:'https://evil.test'});assert.equal((await forbidden.json()).code,'forbidden');
+});
