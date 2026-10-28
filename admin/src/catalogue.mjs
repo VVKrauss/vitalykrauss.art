@@ -43,6 +43,40 @@ export async function createCatalogue(db, dataDirectory, config) {
     db.prepare('UPDATE studio_catalogue SET draft_json = ?, published_json = ?, published_at = ?, version = version + 1 WHERE id = 1 AND version = ?').run(JSON.stringify(draft), JSON.stringify(draft), new Date().toISOString(), version);
     return state();
   }
+  function deleteArchived(version, submittedDraft, kind, id) {
+    if (!['works','series','exhibitions'].includes(kind) || typeof id !== 'string') throw new ContentError('Некорректная запись для удаления.');
+    if (!Number.isSafeInteger(version) || version < 1) throw new ContentError('Некорректная версия каталога.');
+    const record = row();
+    if (record.version !== version) throw new ContentError('Каталог изменён в другой вкладке. Удаление не выполнено.',409);
+    const draft = normalizeCatalogue(submittedDraft ?? JSON.parse(record.draft_json),media.list(),{draft:true});
+    const item = draft[kind].find(entry=>entry.id===id);
+    if (!item) throw new ContentError('Запись не найдена.',404);
+    if (item.archived !== true) throw new ContentError('Окончательно удалить можно только запись из архива.');
+    const published = record.published_json ? JSON.parse(record.published_json) : null;
+    const candidates = kind === 'works' ? new Set([item.mediaId,published?.works.find(w=>w.id===id)?.mediaId].filter(Boolean)) : new Set();
+    const remove = document => {
+      if(!document)return;
+      document[kind]=document[kind].filter(entry=>entry.id!==id);
+      if(kind==='works') {
+        if(document.heroWorkId===id)document.heroWorkId=null;
+        document.exhibitions.forEach(exhibition=>{exhibition.workIds=exhibition.workIds.filter(workId=>workId!==id);});
+      }
+      if(kind==='series')document.works.forEach(work=>{if(work.seriesId===id)work.seriesId=null;});
+    };
+    remove(draft);remove(published);
+    const unused=[...candidates].filter(mediaId=>![draft,published].some(document=>document?.works.some(work=>work.mediaId===mediaId))).map(media.record).filter(Boolean);
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      const result=db.prepare('UPDATE studio_catalogue SET draft_json = ?, published_json = ?, published_at = ?, version = version + 1 WHERE id = 1 AND version = ?')
+        .run(JSON.stringify(draft),published ? JSON.stringify(published) : null,published ? new Date().toISOString() : null,version);
+      if(!result.changes)throw new ContentError('Каталог изменён. Удаление не выполнено.',409);
+      unused.forEach(image=>media.forget(image.id));
+      db.exec('COMMIT');
+    }catch(error){db.exec('ROLLBACK');throw error;}
+    let cleanupWarning=false;
+    for(const image of unused){try{media.eraseFiles(image);}catch{cleanupWarning=true;console.error('Deleted artwork file cleanup failed; private media is no longer accessible.');}}
+    return {...state(),...(cleanupWarning ? {cleanupWarning:'Запись удалена. Часть файлов требует очистки на сервере; доступ к ним закрыт.'} : {})};
+  }
   function published() {
     const record = row();
     if (!record.published_json) throw new ContentError('Каталог ещё не опубликован.', 404);
@@ -58,5 +92,5 @@ export async function createCatalogue(db, dataDirectory, config) {
     if (!work || !size) throw new ContentError('Работа или размер не найдены.', 404);
     return media.print(work.mediaId, size);
   }
-  return { state, save, publish, published, publicMedia, media, print };
+  return { state, save, publish, deleteArchived, published, publicMedia, media, print };
 }

@@ -199,3 +199,39 @@ test('unfinished draft saves and reloads, while invalid publication preserves th
   assert.equal((await s.req('/api/studio/publish',{method:'POST',body:{version:state.version,draft:state.draft}})).status,400);
   assert.equal((await (await s.req('/api/catalogue',{anonymous:true})).json()).works[0].title.ru,'Новая работа');
 });
+
+test('permanent deletion requires an archived item, clears all links and removes unshared media', async t => {
+  const s=await fixture(t);const m=await (await s.upload(await image())).json();let state=await (await s.req('/api/studio/content')).json();
+  state.draft.works.push(artwork(m));state.draft.heroWorkId='work-new';
+  state.draft.series.push({id:'series-delete',title:text('Серия'),description:text(''),collaborator:'',archived:false});state.draft.works[0].seriesId='series-delete';
+  state.draft.exhibitions.push({id:'event-delete',title:text('Выставка'),description:text(''),startDate:'2026',endDate:'',venue:text(''),city:text(''),workIds:['work-new'],archived:false});
+  state=await (await s.req('/api/studio/publish',{method:'POST',body:{version:state.version,draft:state.draft}})).json();
+  const remove=(kind,id,anonymous=false)=>s.req('/api/studio/delete',{method:'POST',anonymous,body:{version:state.version,draft:state.draft,kind,id}});
+  assert.equal((await remove('works','work-new',true)).status,401);
+  assert.equal((await s.req('/api/studio/delete',{method:'POST',origin:'https://evil.example',body:{version:state.version,draft:state.draft,kind:'works',id:'work-new'}})).status,403);
+  assert.equal((await remove('__proto__','work-new')).status,400);
+  assert.equal((await remove('works','work-new')).status,400);
+  const replacement=await (await s.upload(await image(),'replacement.png')).json();state.draft.works[0].mediaId=replacement.id;
+  state.draft.works[0].archived=true;state.draft.heroWorkId=null;
+  const response=await remove('works','work-new');assert.equal(response.status,200);state=await response.json();
+  assert.equal(state.draft.works.length,0);assert.deepEqual(state.draft.exhibitions[0].workIds,[]);assert.equal(state.media.length,0);
+  const published=await (await s.req('/api/catalogue',{anonymous:true})).json();assert.equal(published.works.length,0);assert.equal(published.heroWorkId,null);assert.deepEqual(published.exhibitions[0].workIds,[]);
+  for(const folder of ['originals','web','thumb'])assert.deepEqual(await readdir(join(s.dir,'media',folder)),[]);
+  state.draft.exhibitions[0].archived=true;state=await (await remove('exhibitions','event-delete')).json();assert.equal(state.draft.exhibitions.length,0);
+  assert.equal((await (await s.req('/api/catalogue',{anonymous:true})).json()).exhibitions.length,0);
+});
+
+test('deleting an archived series keeps works and shared images; stale deletion never overwrites changes', async t=>{
+ const s=await fixture(t);const m=await (await s.upload(await image())).json();let state=await (await s.req('/api/studio/content')).json();
+ state.draft.series.push({id:'series-delete',title:text('Серия'),description:text(''),collaborator:'',archived:true});
+ const work=artwork(m);work.seriesId='series-delete';work.archived=true;state.draft.works.push(work,{...artwork(m),id:'shared-work'});
+ state=await (await s.req('/api/studio/publish',{method:'POST',body:{version:state.version,draft:state.draft}})).json();
+ const previousVersion=state.version;
+ state.draft.works[1].title=text('Несвязанные правки черновика');
+ state=await (await s.req('/api/studio/delete',{method:'POST',body:{version:state.version,draft:state.draft,kind:'series',id:'series-delete'}})).json();
+ assert.equal(state.draft.works[1].title.ru,'Несвязанные правки черновика');assert.equal(s.catalogue.published().works[0].title.ru,'Новая работа');
+ assert.equal(state.draft.series.length,0);assert.equal(state.draft.works.length,2);assert.equal(state.draft.works[0].seriesId,null);
+ assert.equal((await s.req('/api/studio/delete',{method:'POST',body:{version:previousVersion,draft:state.draft,kind:'works',id:work.id}})).status,409);
+ state=await (await s.req('/api/studio/delete',{method:'POST',body:{version:state.version,draft:state.draft,kind:'works',id:work.id}})).json();
+ assert.equal(state.draft.works.length,1);assert.equal(state.media.length,1);assert.equal((await s.req(m.previewUrl)).status,200);
+});

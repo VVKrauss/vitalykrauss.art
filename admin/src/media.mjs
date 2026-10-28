@@ -2,6 +2,7 @@ import sharp from 'sharp';
 import { randomUUID } from 'node:crypto';
 import { mkdir, copyFile, unlink, chmod } from 'node:fs/promises';
 import { join, basename } from 'node:path';
+import { unlinkSync } from 'node:fs';
 import { ContentError } from './catalogue-model.mjs';
 
 sharp.cache(false);
@@ -62,5 +63,11 @@ export async function createMediaStore(db, dataDirectory) {
     const density = Math.max(1, Math.round(target / (size.widthCm / 2.54)));
     return sharp(original, imageOptions).autoOrient().resize({ width: target, withoutEnlargement: true }).flatten({ background: '#ffffff' }).withMetadata({ density }).jpeg({ quality: 95, chromaSubsampling: '4:4:4' });
   }
-  return { list, record, describe, ingest, path, print, incomingDirectory: join(root, 'incoming') };
+  function forget(id) { db.prepare('DELETE FROM studio_media WHERE id = ?').run(id); }
+  function eraseFiles(row) {
+    for (const file of [join(root,'originals',`${row.id}.${row.format}`),join(root,'web',`${row.id}.webp`),join(root,'thumb',`${row.id}.webp`)]) {
+      try { unlinkSync(file); } catch(error) { if(error.code !== 'ENOENT') throw error; }
+    }
+  }
+  return { list, record, describe, ingest, path, print, forget, eraseFiles, incomingDirectory: join(root, 'incoming') };
 }
