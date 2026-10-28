@@ -1,0 +1,14 @@
+# Use alongside compose.yaml when the existing reverse proxy runs in Docker.
+# Attach the proxy to this dedicated network and trust its exact IP in .env.
+services:
+  studio:
+    ports: !reset []
+    networks:
+      studio-proxy:
+        aliases:
+          - vk-studio
+
+networks:
+  studio-proxy:
+    external: true
+    name: vitalykrauss_studio_proxy
