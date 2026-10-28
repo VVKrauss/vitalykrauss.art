@@ -262,3 +262,8 @@ test('exhibition archive action persists only target visibility and keeps other 
  const restored=await s.req('/api/studio/exhibition-archive',{method:'POST',body:{version:state.version,draft:state.draft,id,archived:false}});assert.equal(restored.status,200);assert.equal(s.catalogue.published().exhibitions.length,3);
  assert.equal((await s.req(`/exhibitions/${id}/edit`)).status,200);
 });
+
+test('series archive has separate edit routes and does not publish unrelated draft edits',async t=>{
+ const s=await fixture(t,true);let state=await (await s.req('/api/studio/content')).json();const id=state.draft.series[0].id;const workTitle=s.catalogue.published().works[0].title.ru;state.draft.works[0].title.ru='Private series edit';
+ const response=await s.req('/api/studio/entry-archive',{method:'POST',body:{version:state.version,draft:state.draft,kind:'series',id,archived:true}});assert.equal(response.status,200);state=await response.json();assert.equal(s.catalogue.published().series.length,1);assert.equal(s.catalogue.published().works[0].title.ru,workTitle);assert.equal(state.draft.works[0].title.ru,'Private series edit');assert.equal((await s.req(`/series/${id}/edit`)).status,200);
+});

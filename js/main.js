@@ -88,7 +88,7 @@
   function onClick(event) {
     const unitButton = event.target.closest('[data-unit]');
     if (unitButton) {
-      units=unitButton.dataset.unit; writePreference('vk-units',units); render(); return;
+      const withinViewer=Boolean(unitButton.closest('#viewer'));units=unitButton.dataset.unit;writePreference('vk-units',units);render();(withinViewer?viewerBody:shopRoot).querySelector(`[data-unit="${units}"]`)?.focus({preventScroll:true});return;
     }
     if (event.target.closest("#theme-toggle")) {
       const style = document.createElement("style");
@@ -245,7 +245,6 @@
       lede.textContent=heroWork.work.description[lang] || (heroWork.series.standalone ? "" : heroWork.series.statement[lang][0]);
     } else lede.textContent="";
     document.querySelectorAll('[data-unit]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.unit===units)));
-    document.querySelector('.units').setAttribute('aria-label', {ru:'Единицы измерения',en:'Measurement units',es:'Unidades de medida'}[lang]);
     updateTheme();
     renderSeries();
     renderExhibitions();
@@ -402,6 +401,7 @@
       + '<article class="shop-copy"><p class="eyebrow">' + escapeHtml([entry.series.standalone ? '' : seriesTitle(entry.series),entry.item.year].filter(Boolean).join(' / ')) + '</p>'
       + '<h3>' + escapeHtml(entry.item.title[lang]) + '</h3>'
       + '<p class="work-description">'+escapeHtml(entry.item.description[lang])+'</p><p class="exhibition-places">'+escapeHtml(exhibitionPlaces(entry.item))+'</p>'
+      + '<div class="size-tools"><span>'+escapeHtml(t('shop.size'))+'</span>'+unitControls()+'</div>'
       + '<div class="size-picker" role="group" aria-label="' + escapeHtml(t("shop.size")) + '">'
       + entry.item.offers.map(function (offer) {
         return '<button type="button" data-shop-size="' + escapeHtml(offer.id) + '" aria-pressed="' + (offer.id === shopSize) + '">' + escapeHtml(sizeText(offer.size)) + '</button>';
@@ -447,7 +447,7 @@
       + escapeHtml(t("viewer.acquire")) + '</p><button type="button" class="icon-button" data-close-viewer>'
       + escapeHtml(t("close")) + "</button></div><h3>" + escapeHtml(found.work.title[lang]) + "</h3><p class=\"viewer-year\">"
       + escapeHtml([found.series.standalone ? "" : seriesTitle(found.series),found.series.with,found.work.year].filter(Boolean).join(" · "))
-      + '</p><p>'+escapeHtml(found.work.description[lang])+'</p><p>'+escapeHtml(exhibitionPlaces(found.work))+'</p><div class="offers">' + found.work.offers.map(function (itemOffer) {
+      + '</p><p>'+escapeHtml(found.work.description[lang])+'</p><p>'+escapeHtml(exhibitionPlaces(found.work))+'</p>'+(found.work.offers.length?'<div class="size-tools"><span>'+escapeHtml(t('shop.size'))+'</span>'+unitControls()+'</div>':'')+'<div class="offers">' + found.work.offers.map(function (itemOffer) {
         return renderOffer(found.work, itemOffer);
       }).join("") + "</div></div></div>";
     if (!viewer.open) viewer.showModal();
@@ -563,6 +563,11 @@
 
   function altText(item, series) {
     return item.title[lang] + ", " + seriesTitle(series);
+  }
+
+  function unitControls() {
+    const label={ru:'Единицы измерения',en:'Measurement units',es:'Unidades de medida'}[lang];
+    return '<div class="measurement-units" role="group" aria-label="'+label+'"><button type="button" data-unit="cm" aria-pressed="'+(units==='cm')+'">sm</button><span aria-hidden="true">|</span><button type="button" data-unit="in" aria-pressed="'+(units==='in')+'">inch</button></div>';
   }
 
   function sizeText(size) {
