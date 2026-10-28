@@ -19,7 +19,7 @@ async function fixture(t, seedContent = false) {
     await new Promise(resolve => server.close(resolve));
     studio?.close(); await rm(dir, { recursive: true, force: true });
   });
-  studio = await createStudio({ baseURL, ownerEmail: 'owner@example.test', secret: randomBytes(48).toString('base64url'), databasePath: join(dir, 'auth.sqlite'), production: false, seedContent });
+  studio = await createStudio({ baseURL, ownerEmail: 'owner@example.test', secret: randomBytes(48).toString('base64url'), databasePath: join(dir, '.data/auth.sqlite'), production: false, seedContent });
   server.on('request', studio.app);
   await studio.provisionOwner('Content-test-password-123!');
   const login = await fetch(baseURL + '/api/auth/sign-in/email', { method: 'POST', headers: { origin: baseURL, 'content-type': 'application/json' }, body: JSON.stringify({ email: 'owner@example.test', password: 'Content-test-password-123!' }) });
@@ -34,7 +34,7 @@ async function fixture(t, seedContent = false) {
     return req('/api/studio/media', { method: 'POST', body: form });
   };
   const save = (version, draft) => req('/api/studio/content', { method: 'PUT', body: { version, draft } });
-  return { ...studio, req, upload, save, baseURL, dir };
+  return { ...studio, req, upload, save, baseURL, dir: join(dir, '.data') };
 }
 
 const text = ru => ({ ru, en: '', es: '' });

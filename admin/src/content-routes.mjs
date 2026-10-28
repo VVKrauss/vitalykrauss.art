@@ -12,7 +12,7 @@ export function mountPublicContent(app, catalogue) {
   app.get('/media/:id/:variant', (req, res) => {
     catalogue.publicMedia(req.params.id);
     const variant = { 'web.webp': 'web', 'thumb.webp': 'thumb' }[req.params.variant];
-    res.set('Cache-Control', 'no-store').sendFile(catalogue.media.path(req.params.id, variant));
+    res.set('Cache-Control', 'no-store').sendFile(catalogue.media.path(req.params.id, variant), { dotfiles: 'allow' });
   });
 }
 
@@ -44,8 +44,8 @@ export function mountPrivateContent(app, catalogue) {
   app.get('/api/studio/media/:id/:variant', (req, res) => {
     const variant = { 'web.webp': 'web', 'thumb.webp': 'thumb', original: 'original' }[req.params.variant];
     const file = catalogue.media.path(req.params.id, variant);
-    if (variant === 'original') return res.download(file, catalogue.media.record(req.params.id).filename);
-    res.sendFile(file);
+    if (variant === 'original') return res.download(file, catalogue.media.record(req.params.id).filename, { dotfiles: 'allow' });
+    res.sendFile(file, { dotfiles: 'allow' });
   });
   app.get('/api/studio/works/:workId/print/:sizeId', async (req, res, next) => {
     if (processing) return next(new ContentError('Сейчас обрабатывается другое изображение. Повторите через несколько секунд.', 429));
