@@ -1,3 +1,4 @@
+import { initializeContent, resetContent } from './content.js';
 import { authClient } from './auth-client.js';
 
 const $ = selector => document.querySelector(selector);
@@ -11,7 +12,7 @@ function message(text = '', error = false) {
   node.dataset.error = String(error);
 }
 
-function setSession(user) {
+function setSession(user, { discard = false } = {}) {
   signedIn = Boolean(user);
   $('#initial-state').hidden = true;
   $('#login').hidden = signedIn;
@@ -19,7 +20,9 @@ function setSession(user) {
   $('#sign-out').hidden = !signedIn;
   $('#private-label').hidden = signedIn;
   $('#owner').textContent = user?.email || '';
+  if (user) initializeContent(user.id);
   if (!user) {
+    resetContent({discard});
     $('#passkeys').replaceChildren();
     $('#change-password-form').reset();
     $('#login-form').reset();
@@ -125,7 +128,7 @@ $('#add-passkey').addEventListener('click', () => action(async () => {
 
 $('#sign-out').addEventListener('click', () => action(async () => {
   checkResult(await authClient.signOut());
-  setSession(null);
+  setSession(null, {discard:true});
   $('#email').focus();
 }, $('#sign-out'), 'Выходим…'));
 

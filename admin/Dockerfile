@@ -14,6 +14,7 @@ COPY --from=build --chown=node:node /app/dist ./dist
 COPY --chown=node:node package.json package-lock.json ./
 COPY --chown=node:node src ./src
 COPY --chown=node:node public ./public
+COPY --chown=node:node seed ./seed
 COPY --chown=node:node scripts/setup.mjs scripts/healthcheck.mjs ./scripts/
 RUN mkdir -p /app/.data && chown node:node /app/.data
 USER node

@@ -9,6 +9,9 @@ import { betterAuth } from 'better-auth';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { adminRoot } from './config.mjs';
 import { createAuthOptions } from './auth.mjs';
+import { createCatalogue } from './catalogue.mjs';
+import { mountPrivateContent, mountPublicContent } from './content-routes.mjs';
+import { ContentError } from './catalogue-model.mjs';
 
 const publicAuth = new Set([
   'POST /sign-in/email', 'POST /sign-out', 'GET /get-session',
@@ -33,6 +36,7 @@ export async function createStudio(config) {
     throw error;
   }
   const auth = betterAuth(options);
+  const catalogue = await createCatalogue(db, dirname(config.databasePath), config);
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustedProxyIps?.length ? config.trustedProxyIps : false);
@@ -40,7 +44,7 @@ export async function createStudio(config) {
     req.headers['x-studio-client-ip'] = req.ip;
     res.set({
       'Cache-Control': 'no-store',
-      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
       'X-Robots-Tag': 'noindex, nofollow',
@@ -49,7 +53,7 @@ export async function createStudio(config) {
     });
     if (config.production) res.set('Strict-Transport-Security', 'max-age=31536000');
     if (req.headers.host !== new URL(config.baseURL).host) return res.status(421).json({ error: 'Invalid host' });
-    if (req.path.startsWith('/api/')) {
+    if (req.path.startsWith('/api/') && !(req.path === '/api/catalogue' && ['GET', 'HEAD'].includes(req.method))) {
       const origin = req.headers.origin;
       if ((origin && origin !== config.baseURL) || (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && origin !== config.baseURL)) {
         return res.status(403).json({ error: 'Forbidden origin' });
@@ -78,16 +82,21 @@ export async function createStudio(config) {
   }, toNodeHandler(auth));
   app.use('/api/studio', requireOwner);
   app.get('/api/studio/session', (req, res) => res.json({ user: res.locals.owner }));
+  mountPrivateContent(app, catalogue);
+  mountPublicContent(app, catalogue);
 
   // Explicit files only: never expose admin/, the repository, secrets or data as a static root.
   app.get('/', (req, res) => res.sendFile(join(adminRoot, 'public/index.html')));
-  for (const file of ['app.js', 'styles.css']) {
+  for (const file of ['app.js', 'styles.css', 'content.js', 'content.css', 'logo.png']) {
     app.get(`/assets/${file}`, (req, res) => res.sendFile(join(adminRoot, 'public', file)));
   }
   app.get('/assets/auth-client.js', (req, res) => res.sendFile(join(adminRoot, 'dist/auth-client.js')));
   app.use((req, res) => res.status(404).json({ error: 'Not found' }));
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);
+    if (error instanceof ContentError) return res.status(error.status).json({ error: error.message });
+    if (error.type === 'entity.too.large') return res.status(413).json({ error: 'Слишком много данных в каталоге.' });
+    if (error.type === 'entity.parse.failed') return res.status(400).json({ error: 'Некорректные данные каталога.' });
     res.status(500).json({ error: 'Service unavailable' });
   });
 
@@ -116,5 +125,5 @@ export async function createStudio(config) {
     } catch (error) { db.exec('ROLLBACK'); throw error; }
   }
 
-  return { app, auth, db, provisionOwner, close: () => db.close() };
+  return { app, auth, db, catalogue, provisionOwner, close: () => db.close() };
 }

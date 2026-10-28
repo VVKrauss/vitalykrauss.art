@@ -24,7 +24,7 @@ async function fixture(t, options = {}) {
   });
   studio = await createStudio({
     baseURL: origin, ownerEmail, secret: randomBytes(48).toString('base64url'),
-    databasePath: join(dir, 'auth.sqlite'), production: false,
+    databasePath: join(dir, 'auth.sqlite'), production: false, seedContent: false,
     ...options,
   });
   server.on('request', studio.app);

@@ -6,6 +6,8 @@
 !src/**
 !public/
 !public/**
+!seed/
+!seed/**
 !scripts/
 !scripts/build.mjs
 !scripts/setup.mjs

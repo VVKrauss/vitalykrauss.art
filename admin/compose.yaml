@@ -22,7 +22,7 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    mem_limit: 384m
+    mem_limit: 512m
     pids_limit: 100
     healthcheck:
       test: ['CMD', 'node', 'scripts/healthcheck.mjs']

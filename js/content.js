@@ -295,3 +295,33 @@ function work(id, image, width, height, year, title, ...offers) {
 function offer(id, size, edition, price, status) {
   return { id: id, size: size, edition: edition, price: price, status: status };
 }
+
+// Translate the bootstrap and published snapshot to one public presentation model.
+window.normalizeCatalogue = function (source, bootstrap) {
+  const text = function (value) {
+    if (typeof value === "string") value = { en: value };
+    value = value || {};
+    const fallback = value.ru || value.en || value.es || "";
+    return { ru: value.ru || fallback, en: value.en || fallback, es: value.es || fallback };
+  };
+  const image = function (value) {
+    try {
+      const url = new URL(value, bootstrap ? location.href : "https://studio.vitalykrauss.art");
+      return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+    } catch (_) { return ""; }
+  };
+  const groups = source.series.filter(s => !s.archived).map(function (s, i) {
+    const description = text(bootstrap ? Object.fromEntries(Object.entries(s.statement).map(([k,v]) => [k,v.join("\n\n")])) : s.description);
+    return { id:s.id, index:String(i+1).padStart(2,"0"), title:text(s.title), with:s.collaborator || s.with || "", statement:Object.fromEntries(Object.entries(description).map(([k,v]) => [k,v.split("\n\n")])), works:[] };
+  });
+  const raw = bootstrap ? source.series.flatMap(s => s.works.map(w => ({...w,seriesId:s.id}))) : source.works;
+  const works = raw.filter(w => !w.archived).map(function (w) {
+    const sizes = bootstrap ? w.offers.map(o => { const dimensions=o.size.match(/[\d.]+/g); return {id:o.id,widthCm:Number(dimensions[0]),heightCm:Number(dimensions[1]),price:o.price}; }) : w.sizes || [];
+    return {id:w.id,title:text(w.title),description:text(w.description),year:w.year || "",seriesId:w.seriesId,image:image(w.image),thumbnail:image(w.thumbnail || w.image),width:w.width,height:w.height,
+      offers:sizes.filter(o => Number.isFinite(o.price) && o.price > 0).map(o => ({id:o.id,size:o.widthCm+" × "+o.heightCm+" cm",price:o.price}))};
+  });
+  const standalone = {id:"__standalone",index:"",title:text({en:"Works",ru:"Работы",es:"Obras"}),with:"",statement:{en:[""],ru:[""],es:[""]},works:[],standalone:true};
+  works.forEach(w => (groups.find(s => s.id === w.seriesId) || standalone).works.push(w));
+  if (standalone.works.length) groups.push(standalone);
+  return {heroWorkId:bootstrap ? "snail" : source.heroWorkId,series:groups,works:works,exhibitions:source.exhibitions.filter(e => !e.archived).map((e,i) => ({...e,id:e.id || "exhibition-"+i,title:text(e.title),description:text(e.description),venue:text(e.venue),city:text(e.city),startDate:e.startDate || e.year || "",endDate:e.endDate || "",workIds:e.workIds || []}))};
+};

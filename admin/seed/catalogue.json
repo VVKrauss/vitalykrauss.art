@@ -1,0 +1,504 @@
+{
+  "draft": {
+    "heroWorkId": "snail",
+    "works": [
+      {
+        "id": "snail",
+        "title": {
+          "en": "Snail",
+          "ru": "Улитка",
+          "es": "Caracol"
+        },
+        "description": {
+          "ru": "",
+          "en": "",
+          "es": ""
+        },
+        "year": "2025",
+        "seriesId": "insecterra",
+        "mediaId": "seed-snail",
+        "maxWidthCm": 75,
+        "maxHeightCm": 40.159,
+        "sizes": [
+          {
+            "id": "standard",
+            "widthCm": 50,
+            "heightCm": 26.773,
+            "price": 220
+          },
+          {
+            "id": "large",
+            "widthCm": 75,
+            "heightCm": 40.159,
+            "price": 330
+          }
+        ],
+        "archived": false
+      },
+      {
+        "id": "shield",
+        "title": {
+          "en": "Shield bug",
+          "ru": "Щитник",
+          "es": "Chinche"
+        },
+        "description": {
+          "ru": "",
+          "en": "",
+          "es": ""
+        },
+        "year": "2025",
+        "seriesId": "insecterra",
+        "mediaId": "seed-shield",
+        "maxWidthCm": 60,
+        "maxHeightCm": 32.1,
+        "sizes": [
+          {
+            "id": "standard",
+            "widthCm": 40,
+            "heightCm": 21.4,
+            "price": 160
+          },
+          {
+            "id": "large",
+            "widthCm": 60,
+            "heightCm": 32.1,
+            "price": 240
+          }
+        ],
+        "archived": false
+      },
+      {
+        "id": "ant",
+        "title": {
+          "en": "Ant",
+          "ru": "Муравей",
+          "es": "Hormiga"
+        },
+        "description": {
+          "ru": "",
+          "en": "",
+          "es": ""
+        },
+        "year": "2025",
+        "seriesId": "insecterra",
+        "mediaId": "seed-ant",
+        "maxWidthCm": 75,
+        "maxHeightCm": 40.159,
+        "sizes": [
+          {
+            "id": "standard",
+            "widthCm": 50,
+            "heightCm": 26.773,
+            "price": 220
+          },
+          {
+            "id": "large",
+            "widthCm": 75,
+            "heightCm": 40.159,
+            "price": 330
+          }
+        ],
+        "archived": false
+      },
+      {
+        "id": "beetle",
+        "title": {
+          "en": "Beetle",
+          "ru": "Жук",
+          "es": "Escarabajo"
+        },
+        "description": {
+          "ru": "",
+          "en": "",
+          "es": ""
+        },
+        "year": "2025",
+        "seriesId": "insecterra",
+        "mediaId": "seed-beetle",
+        "maxWidthCm": 60,
+        "maxHeightCm": 32.1,
+        "sizes": [
+          {
+            "id": "standard",
+            "widthCm": 40,
+            "heightCm": 21.4,
+            "price": 180
+          },
+          {
+            "id": "large",
+            "widthCm": 60,
+            "heightCm": 32.1,
+            "price": 270
+          }
+        ],
+        "archived": false
+      },
+      {
+        "id": "firebug",
+        "title": {
+          "en": "Firebug",
+          "ru": "Клоп-солдатик",
+          "es": "Chinche roja"
+        },
+        "description": {
+          "ru": "",
+          "en": "",
+          "es": ""
+        },
+        "year": "2025",
+        "seriesId": "insecterra",
+        "mediaId": "seed-firebug",
+        "maxWidthCm": 75,
+        "maxHeightCm": 40.159,
+        "sizes": [
+          {
+            "id": "standard",
+            "widthCm": 50,
+            "heightCm": 26.773,
+            "price": 240
+          },
+          {
+            "id": "large",
+            "widthCm": 75,
+            "heightCm": 40.159,
+            "price": 360
+          }
+        ],
+        "archived": false
+      },
+      {
+        "id": "bee",
+        "title": {
+          "en": "Bee",
+          "ru": "Пчела",
+          "es": "Abeja"
+        },
+        "description": {
+          "ru": "",
+          "en": "",
+          "es": ""
+        },
+        "year": "2025",
+        "seriesId": "insecterra",
+        "mediaId": "seed-bee",
+        "maxWidthCm": 90,
+        "maxHeightCm": 48.191,
+        "sizes": [
+          {
+            "id": "standard",
+            "widthCm": 60,
+            "heightCm": 32.127,
+            "price": 310
+          },
+          {
+            "id": "large",
+            "widthCm": 90,
+            "heightCm": 48.191,
+            "price": 465
+          }
+        ],
+        "archived": false
+      },
+      {
+        "id": "stones",
+        "title": {
+          "en": "Stone bug",
+          "ru": "Клоп на камнях",
+          "es": "Chinche entre piedras"
+        },
+        "description": {
+          "ru": "",
+          "en": "",
+          "es": ""
+        },
+        "year": "2025",
+        "seriesId": "insecterra",
+        "mediaId": "seed-stones",
+        "maxWidthCm": 75,
+        "maxHeightCm": 40.159,
+        "sizes": [
+          {
+            "id": "standard",
+            "widthCm": 50,
+            "heightCm": 26.773,
+            "price": 200
+          },
+          {
+            "id": "large",
+            "widthCm": 75,
+            "heightCm": 40.159,
+            "price": 300
+          }
+        ],
+        "archived": false
+      },
+      {
+        "id": "y-01",
+        "title": {
+          "en": "Untitled 01",
+          "ru": "Без названия 01",
+          "es": "Sin título 01"
+        },
+        "description": {
+          "ru": "",
+          "en": "",
+          "es": ""
+        },
+        "year": "2026",
+        "seriesId": "with-yudochkina",
+        "mediaId": "seed-y-01",
+        "maxWidthCm": 105,
+        "maxHeightCm": 74.264,
+        "sizes": [
+          {
+            "id": "standard",
+            "widthCm": 70,
+            "heightCm": 49.509,
+            "price": 280
+          },
+          {
+            "id": "large",
+            "widthCm": 105,
+            "heightCm": 74.264,
+            "price": 420
+          }
+        ],
+        "archived": false
+      },
+      {
+        "id": "y-02",
+        "title": {
+          "en": "Untitled 02",
+          "ru": "Без названия 02",
+          "es": "Sin título 02"
+        },
+        "description": {
+          "ru": "",
+          "en": "",
+          "es": ""
+        },
+        "year": "2026",
+        "seriesId": "with-yudochkina",
+        "mediaId": "seed-y-02",
+        "maxWidthCm": 75,
+        "maxHeightCm": 103.839,
+        "sizes": [
+          {
+            "id": "standard",
+            "widthCm": 50,
+            "heightCm": 69.226,
+            "price": 260
+          },
+          {
+            "id": "large",
+            "widthCm": 75,
+            "heightCm": 103.839,
+            "price": 390
+          }
+        ],
+        "archived": false
+      },
+      {
+        "id": "y-03",
+        "title": {
+          "en": "Untitled 03",
+          "ru": "Без названия 03",
+          "es": "Sin título 03"
+        },
+        "description": {
+          "ru": "",
+          "en": "",
+          "es": ""
+        },
+        "year": "2026",
+        "seriesId": "with-yudochkina",
+        "mediaId": "seed-y-03",
+        "maxWidthCm": 75,
+        "maxHeightCm": 106.041,
+        "sizes": [
+          {
+            "id": "standard",
+            "widthCm": 50,
+            "heightCm": 70.694,
+            "price": 300
+          },
+          {
+            "id": "large",
+            "widthCm": 75,
+            "heightCm": 106.041,
+            "price": 450
+          }
+        ],
+        "archived": false
+      }
+    ],
+    "series": [
+      {
+        "id": "insecterra",
+        "title": {
+          "ru": "Insecterra",
+          "en": "Insecterra",
+          "es": "Insecterra"
+        },
+        "description": {
+          "ru": "Эта серия — о мире насекомых. Он всегда рядом и всё же часто остаётся незамеченным.\n\nЯ не пытаюсь точно документировать насекомых. Мне важно ощущение этого мира: непрерывное движение, плотность и тихое присутствие. Он существует прямо у нас под ногами, смотрим мы на него или нет.\n\nЦвет в этих работах — акцент. Он не повторяет реальность, а выделяет отдельные элементы, ведёт взгляд и немного смещает восприятие знакомых форм.\n\nДля меня эта серия — способ посмотреть на привычное с другой стороны и заметить то, что обычно ускользает.",
+          "en": "This series is about the world of insects — a world that is always around us, yet often goes unnoticed.\n\nI’m not trying to document insects precisely. Instead, I’m interested in the feeling of this world — its constant movement, its density, and its quiet presence. It exists right beneath our feet, whether we pay attention to it or not.\n\nColor in these works is used as an accent. It doesn’t aim to replicate reality, but to highlight certain elements, guide the eye, and slightly shift how we perceive familiar forms.\n\nFor me, this series is a way to look at something familiar from a different angle, and to notice what usually escapes our attention.",
+          "es": "Esta serie trata del mundo de los insectos: un mundo que siempre está a nuestro alrededor y que, sin embargo, a menudo pasa desapercibido.\n\nNo intento documentar los insectos con precisión. Me interesa la sensación de ese mundo: su movimiento constante, su densidad y su presencia silenciosa. Existe justo bajo nuestros pies, le prestemos atención o no.\n\nEl color en estas obras funciona como acento. No busca reproducir la realidad, sino señalar ciertos elementos, guiar la mirada y desplazar ligeramente cómo percibimos las formas conocidas.\n\nPara mí, esta serie es una manera de mirar lo familiar desde otro ángulo y de notar lo que suele escapar a nuestra atención."
+        },
+        "collaborator": "",
+        "archived": false
+      },
+      {
+        "id": "with-yudochkina",
+        "title": {
+          "en": "Series II",
+          "ru": "Серия II",
+          "es": "Serie II"
+        },
+        "description": {
+          "ru": "Серия, сделанная вместе с Ksenia Yudochkina.",
+          "en": "A series made with Ksenia Yudochkina.",
+          "es": "Una serie realizada junto a Ksenia Yudochkina."
+        },
+        "collaborator": "Ksenia Yudochkina",
+        "archived": false
+      }
+    ],
+    "exhibitions": [
+      {
+        "id": "exhibition-1",
+        "title": {
+          "en": "Color Index",
+          "ru": "Color Index",
+          "es": "Color Index"
+        },
+        "description": {
+          "ru": "",
+          "en": "",
+          "es": ""
+        },
+        "startDate": "2026",
+        "endDate": "",
+        "venue": {
+          "en": "East Room",
+          "ru": "East Room",
+          "es": "East Room"
+        },
+        "city": {
+          "en": "Berlin",
+          "ru": "Берлин",
+          "es": "Berlín"
+        },
+        "workIds": [],
+        "archived": false
+      },
+      {
+        "id": "exhibition-2",
+        "title": {
+          "en": "Insecterra",
+          "ru": "Insecterra",
+          "es": "Insecterra"
+        },
+        "description": {
+          "ru": "",
+          "en": "",
+          "es": ""
+        },
+        "startDate": "2025",
+        "endDate": "",
+        "venue": {
+          "en": "Sala Norte",
+          "ru": "Sala Norte",
+          "es": "Sala Norte"
+        },
+        "city": {
+          "en": "Madrid",
+          "ru": "Мадрид",
+          "es": "Madrid"
+        },
+        "workIds": [],
+        "archived": false
+      },
+      {
+        "id": "exhibition-3",
+        "title": {
+          "en": "Field Notes",
+          "ru": "Field Notes",
+          "es": "Field Notes"
+        },
+        "description": {
+          "ru": "",
+          "en": "",
+          "es": ""
+        },
+        "startDate": "2024",
+        "endDate": "",
+        "venue": {
+          "en": "The Yard",
+          "ru": "The Yard",
+          "es": "The Yard"
+        },
+        "city": {
+          "en": "London",
+          "ru": "Лондон",
+          "es": "Londres"
+        },
+        "workIds": [],
+        "archived": false
+      }
+    ]
+  },
+  "media": [
+    {
+      "id": "seed-snail",
+      "filename": "snail.webp",
+      "originalAvailable": false
+    },
+    {
+      "id": "seed-shield",
+      "filename": "shield.webp",
+      "originalAvailable": false
+    },
+    {
+      "id": "seed-ant",
+      "filename": "ant.webp",
+      "originalAvailable": false
+    },
+    {
+      "id": "seed-beetle",
+      "filename": "beetle.webp",
+      "originalAvailable": false
+    },
+    {
+      "id": "seed-firebug",
+      "filename": "firebug.webp",
+      "originalAvailable": false
+    },
+    {
+      "id": "seed-bee",
+      "filename": "bee.webp",
+      "originalAvailable": false
+    },
+    {
+      "id": "seed-stones",
+      "filename": "stones.webp",
+      "originalAvailable": false
+    },
+    {
+      "id": "seed-y-01",
+      "filename": "y-01.webp",
+      "originalAvailable": false
+    },
+    {
+      "id": "seed-y-02",
+      "filename": "y-02.webp",
+      "originalAvailable": false
+    },
+    {
+      "id": "seed-y-03",
+      "filename": "y-03.webp",
+      "originalAvailable": false
+    }
+  ]
+}

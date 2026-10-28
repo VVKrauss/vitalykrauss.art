@@ -6,12 +6,12 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Studio — Vitaly Krauss</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23292b27' d='M4 5h5l7 20 7-20h5L18 28h-4Z'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="stylesheet" href="/assets/styles.css"><link rel="stylesheet" href="/assets/content.css">
   <script type="module" src="/assets/app.js"></script>
 </head>
 <body>
   <header class="header">
-    <a class="wordmark" href="/">Vitaly Krauss <span>Studio</span></a>
+    <a class="wordmark" href="/" aria-label="Vitaly Krauss Studio"><img class="studio-logo" src="/assets/logo.png" alt="VK"><span>Studio</span></a>
     <button id="sign-out" class="text-button" type="button" hidden>Выйти</button>
     <span id="private-label" class="eyebrow">Личное пространство</span>
   </header>
@@ -41,7 +41,7 @@
     </section>
     <section id="studio" aria-labelledby="studio-title" hidden>
       <div class="studio-heading"><p class="eyebrow">Личное пространство / 01</p><h1 id="studio-title">Добро пожаловать.</h1><p id="owner" class="muted"></p></div>
-      <div class="studio-layout">
+      <div id="content-root"></div><div id="access-panel" class="studio-layout" hidden>
         <section class="security" aria-labelledby="security-title">
           <div class="section-heading"><span class="eyebrow">Доступ</span><h2 id="security-title">Ключи от студии</h2></div>
           <p class="muted">Добавьте ключ доступа, чтобы входить без пароля с вашего устройства.</p>
@@ -57,7 +57,7 @@
             </form>
           </details>
         </section>
-        <aside class="catalogue-note"><p class="eyebrow">Каталог</p><h2>Место для нового.</h2><p class="muted">Здесь появится управление сериями, работами и размерами принтов.</p><a class="subtle-link" href="https://vitalykrauss.art">Посмотреть опубликованные работы <span aria-hidden="true">↗</span></a></aside>
+
       </div>
     </section>
     <p id="message" class="message" role="status" aria-live="polite" tabindex="-1" hidden></p>

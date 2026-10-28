@@ -10,7 +10,7 @@
   const heroImage = document.querySelector("#hero-image");
 
   const openSeries = new Set(["insecterra", "with-yudochkina"]);
-  const slideAt = {};
+  const slideAt = Object.create(null);
   const request = [];
   let lang = readPreference("vk-lang") || "en";
   let shopAt = 0;
@@ -54,7 +54,21 @@
     if (origin) origin.focus({ preventScroll: true });
   });
 
+  Object.assign(SITE, normalizeCatalogue(SITE, true));
   render();
+  fetch("https://studio.vitalykrauss.art/api/catalogue", {credentials:"omit",cache:"no-store",signal:AbortSignal.timeout(8000)})
+    .then(r => { if (!r.ok) throw new Error("Unavailable"); return r.json(); })
+    .then(data => {
+      if (!data.publishedAt || !Array.isArray(data.works) || !Array.isArray(data.series) || !Array.isArray(data.exhibitions)) return;
+      Object.assign(SITE, normalizeCatalogue(data, false));
+      SITE.series.forEach(s => openSeries.add(s.id));
+      for (let i=request.length-1;i>=0;i--) {
+        const found=findWork(request[i].workId);
+        if (!found || !found.work.offers.some(o => o.id===request[i].variantId)) request.splice(i,1);
+      }
+      if (openWorkId && !findWork(openWorkId)) viewer.close();
+      shopAt=0; shopSize=""; render();
+    }).catch(() => {});
 
   function onClick(event) {
     if (event.target.closest("#theme-toggle")) {
@@ -102,7 +116,7 @@
       if (openSeries.has(id)) openSeries.delete(id);
       else openSeries.add(id);
       renderSeries();
-      seriesRoot.querySelector('[data-series-toggle="' + id + '"]').focus({ preventScroll: true });
+      seriesRoot.querySelector('[data-series-toggle="' + escapeHtml(id) + '"]').focus({ preventScroll: true });
       return;
     }
 
@@ -202,8 +216,15 @@
     langButtons.forEach(function (button) {
       button.setAttribute("aria-pressed", String(button.dataset.lang === lang));
     });
-    const heroWork = findWork("snail");
-    heroImage.alt = altText(heroWork.work, heroWork.series);
+    const heroWork = findWork(SITE.heroWorkId);
+    heroImage.closest("figure").hidden = !heroWork;
+    const lede=document.querySelector(".hero-copy .lede");
+    if (heroWork) {
+      heroImage.src=heroWork.work.image; heroImage.width=heroWork.work.width; heroImage.height=heroWork.work.height;
+      heroImage.alt=altText(heroWork.work,heroWork.series);
+      heroImage.closest("figure").querySelector("figcaption").innerHTML="<span>"+escapeHtml(heroWork.series.standalone ? "" : seriesTitle(heroWork.series))+"</span><span>"+escapeHtml(heroWork.work.title[lang]+" · "+heroWork.work.year)+"</span>";
+      lede.textContent=heroWork.work.description[lang] || (heroWork.series.standalone ? "" : heroWork.series.statement[lang][0]);
+    } else lede.textContent="";
     updateTheme();
     renderSeries();
     renderExhibitions();
@@ -225,18 +246,18 @@
       ? '<p class="series-with">' + escapeHtml(tf("series.with", { name: series.with })) + "</p>"
       : "";
     const body = open
-      ? '<div class="series-body" id="body-' + series.id + '">'
+      ? '<div class="series-body" id="body-' + escapeHtml(series.id) + '">'
         + '<div class="statement"><p>' + escapeHtml(series.statement[lang][0]) + '</p>'
         + (series.statement[lang].length > 1 ? '<details><summary>' + escapeHtml(t("series.about")) + '</summary>'
         + series.statement[lang].slice(1).map(function (paragraph) {
           return "<p>" + escapeHtml(paragraph) + "</p>";
         }).join("") + '</details>' : '') + "</div>"
         + renderSlideshow(series) + "</div>"
-      : '<div class="series-body" id="body-' + series.id + '" hidden></div>';
+      : '<div class="series-body" id="body-' + escapeHtml(series.id) + '" hidden></div>';
     return '<article class="series">'
       + '<h2 class="visually-hidden">' + escapeHtml(title) + "</h2>"
-      + '<button type="button" class="series-toggle" data-series-toggle="' + series.id + '" aria-expanded="' + open + '" aria-controls="body-' + series.id + '">'
-      + '<span class="series-index">' + series.index + "</span>"
+      + '<button type="button" class="series-toggle" data-series-toggle="' + escapeHtml(series.id) + '" aria-expanded="' + open + '" aria-controls="body-' + escapeHtml(series.id) + '">'
+      + '<span class="series-index">' + escapeHtml(series.index) + "</span>"
       + '<span class="series-title">' + escapeHtml(title) + "</span>"
       + '<span class="series-count">' + escapeHtml(tf("series.count", { n: series.works.length })) + '<span class="series-indicator" aria-hidden="true">' + (open ? '−' : '+') + '</span></span>'
       + "</button>"
@@ -247,6 +268,7 @@
 
   function renderSlideshow(series) {
     const count = series.works.length;
+    if (!count) return "";
     const index = ((slideAt[series.id] || 0) % count + count) % count;
     return renderGallery(series.id, series.works, index, series);
   }
@@ -256,25 +278,28 @@
   }
 
   function renderGallery(id, works, index, series) {
+    if (!works.length) return "";
     const item = works[index];
     const title = item.title[lang];
     const thumbnails = works.map(function (work, thumbIndex) {
-      return '<button type="button" class="slide-thumb" data-go="' + thumbIndex + '" data-slideshow="' + id + '" aria-label="' + escapeHtml(work.title[lang]) + '" aria-current="' + (thumbIndex === index) + '">'
-        + '<img src="' + work.image + '" alt="" loading="lazy" width="' + work.width + '" height="' + work.height + '"></button>';
+      return '<button type="button" class="slide-thumb" data-go="' + thumbIndex + '" data-slideshow="' + escapeHtml(id) + '" aria-label="' + escapeHtml(work.title[lang]) + '" aria-current="' + (thumbIndex === index) + '">'
+        + '<img src="' + escapeHtml(work.thumbnail || work.image) + '" alt="" loading="lazy" width="' + work.width + '" height="' + work.height + '"></button>';
     }).join("");
-    return '<div class="slideshow" data-slideshow="' + id + '" role="region" aria-roledescription="' + escapeHtml(t("slide.gallery")) + '" aria-label="' + escapeHtml(series ? seriesTitle(series) : t("shop.label")) + '" tabindex="0">'
-      + '<div class="slide-frame" data-slideshow="' + id + '"><button type="button" class="work" data-open-work="' + item.id + '" aria-label="' + escapeHtml(t("slide.enlarge") + ': ' + title) + '">'
-      + '<img src="' + item.image + '" width="' + item.width + '" height="' + item.height + '" alt="' + escapeHtml(title) + '" loading="lazy">'
+    return '<div class="slideshow" data-slideshow="' + escapeHtml(id) + '" role="region" aria-roledescription="' + escapeHtml(t("slide.gallery")) + '" aria-label="' + escapeHtml(series ? seriesTitle(series) : t("shop.label")) + '" tabindex="0">'
+      + '<div class="slide-frame" data-slideshow="' + escapeHtml(id) + '"><button type="button" class="work" data-open-work="' + escapeHtml(item.id) + '" aria-label="' + escapeHtml(t("slide.enlarge") + ': ' + title) + '">'
+      + '<img src="' + escapeHtml(item.image) + '" width="' + item.width + '" height="' + item.height + '" alt="' + escapeHtml(title) + '" loading="lazy">'
       + "</button></div>"
       + '<div class="slide-bar"><p class="slide-caption" aria-live="polite" aria-atomic="true"><span class="work-name">' + escapeHtml(title) + '</span><span class="slide-position">' + pad(index + 1) + ' / ' + pad(works.length) + '</span></p>'
-      + '<div class="slide-controls"><button type="button" class="slide-arrow" data-step="-1" data-slideshow="' + id + '" aria-label="' + escapeHtml(t("slide.prev")) + '">' + arrowIcon(true) + '</button>'
-      + '<button type="button" class="slide-arrow" data-step="1" data-slideshow="' + id + '" aria-label="' + escapeHtml(t("slide.next")) + '">' + arrowIcon(false) + '</button></div></div>'
+      + '<div class="slide-controls"><button type="button" class="slide-arrow" data-step="-1" data-slideshow="' + escapeHtml(id) + '" aria-label="' + escapeHtml(t("slide.prev")) + '">' + arrowIcon(true) + '</button>'
+      + '<button type="button" class="slide-arrow" data-step="1" data-slideshow="' + escapeHtml(id) + '" aria-label="' + escapeHtml(t("slide.next")) + '">' + arrowIcon(false) + '</button></div></div>'
+      + '<p class="work-description">'+escapeHtml(item.description[lang])+'</p>'
       + '<div class="slide-thumbnails" aria-label="' + escapeHtml(t("slide.thumbnails")) + '">' + thumbnails + '</div></div>';
   }
 
   function stepSlide(seriesId, delta, absoluteIndex, restoreFocus) {
     if (seriesId === "shop") {
       const count = shopEntries().length;
+      if (!count) return;
       shopAt = absoluteIndex == null ? (shopAt + delta + count) % count : ((absoluteIndex % count) + count) % count;
       renderShop();
       if (restoreFocus !== false) focusGallery(shopRoot, seriesId, delta, absoluteIndex, shopAt);
@@ -284,6 +309,7 @@
     const series = SITE.series.find(function (entry) { return entry.id === seriesId; });
     if (!series) return;
     const count = series.works.length;
+    if (!count) return;
     const current = slideAt[seriesId] || 0;
     slideAt[seriesId] = absoluteIndex == null
       ? (current + delta + count) % count
@@ -311,18 +337,17 @@
     }
   }
 
+  function place(item) { return [item.venue[lang],item.city[lang]].filter(Boolean).join(", "); }
+  function exhibitionPlaces(work) { return SITE.exhibitions.filter(e => e.workIds.includes(work.id)).map(place).filter(Boolean).join(" · "); }
   function renderExhibitions() {
-    exhibitionsRoot.innerHTML = '<p class="section-label">' + escapeHtml(t("exhibitions.label")) + "</p>"
-      + SITE.exhibitions.map(function (item) {
-        return '<article class="exhibition"><p>' + item.year + "</p><div><h3>"
-          + escapeHtml(item.title[lang]) + "</h3><p>"
-          + escapeHtml(item.venue[lang] + ", " + item.city[lang]) + "</p></div></article>";
-      }).join("");
+    exhibitionsRoot.innerHTML='<p class="section-label">'+escapeHtml(t("exhibitions.label"))+"</p>"+SITE.exhibitions.map(function(item) {
+      return '<article class="exhibition"><p>'+escapeHtml(item.startDate+(item.endDate && item.endDate!==item.startDate ? " — "+item.endDate : ""))+"</p><div><h3>"+escapeHtml(item.title[lang])+"</h3><p>"+escapeHtml(place(item))+"</p><p>"+escapeHtml(item.description[lang])+"</p>"+'<div class="exhibition-works">'+item.workIds.map(function(id) {const found=findWork(id);return found ? '<button type="button" class="text-link" data-open-work="'+escapeHtml(id)+'">'+escapeHtml(found.work.title[lang])+"</button>" : "";}).join("")+"</div></div></article>";
+    }).join("");
   }
 
   function shopEntries() {
     return SITE.series.flatMap(function (series) {
-      return series.works.map(function (item) { return { item: item, series: series }; });
+      return series.works.filter(item => item.offers.length).map(function (item) { return { item: item, series: series }; });
     });
   }
 
@@ -336,17 +361,23 @@
     const previousStrip = shopRoot.querySelector(".slide-thumbnails");
     const stripScroll = previousStrip ? previousStrip.scrollLeft : 0;
     const items = shopEntries();
+    if (!items.length) {
+      shopRoot.innerHTML='<p class="section-label">'+escapeHtml(t("shop.label"))+'</p><p>'+escapeHtml(t("shop.note"))+'</p>';
+      return;
+    }
+    shopAt=shopAt % items.length;
     const entry = items[shopAt];
     const selectedOffer = entry.item.offers.find(function (offer) { return offer.id === shopSize; }) || entry.item.offers[0];
     shopSize = selectedOffer.id;
     shopRoot.innerHTML = '<p class="section-label">' + escapeHtml(t("shop.label")) + "</p>"
       + '<div class="shop-heading"><h2>' + escapeHtml(t("shop.heading")) + '</h2><p class="shop-intro">' + escapeHtml(t("shop.intro")) + '</p></div>'
       + '<div class="shop-layout">' + renderGallery("shop", items.map(function (value) { return value.item; }), shopAt)
-      + '<article class="shop-copy"><p class="eyebrow">' + escapeHtml(seriesTitle(entry.series)) + ' / ' + entry.item.year + '</p>'
+      + '<article class="shop-copy"><p class="eyebrow">' + escapeHtml([entry.series.standalone ? '' : seriesTitle(entry.series),entry.item.year].filter(Boolean).join(' / ')) + '</p>'
       + '<h3>' + escapeHtml(entry.item.title[lang]) + '</h3>'
+      + '<p class="work-description">'+escapeHtml(entry.item.description[lang])+'</p><p class="exhibition-places">'+escapeHtml(exhibitionPlaces(entry.item))+'</p>'
       + '<div class="size-picker" role="group" aria-label="' + escapeHtml(t("shop.size")) + '">'
       + entry.item.offers.map(function (offer) {
-        return '<button type="button" data-shop-size="' + offer.id + '" aria-pressed="' + (offer.id === shopSize) + '">' + escapeHtml(sizeText(offer.size)) + '</button>';
+        return '<button type="button" data-shop-size="' + escapeHtml(offer.id) + '" aria-pressed="' + (offer.id === shopSize) + '">' + escapeHtml(sizeText(offer.size)) + '</button>';
       }).join('') + '</div>'
       + '<div class="shop-selection" aria-live="polite">' + renderOffer(entry.item, selectedOffer) + '</div>'
       + '<p class="shop-note">' + escapeHtml(t("shop.note")) + '</p>'
@@ -364,16 +395,14 @@
   }
 
   function renderOffer(item, itemOffer) {
-    const sold = itemOffer.status === "sold";
     const inRequest = request.some(function (entry) {
       return entry.workId === item.id && entry.variantId === itemOffer.id;
     });
-    const label = sold ? t("status.sold") : inRequest ? t("added") : t("add");
-    const meta = tf("edition", { n: itemOffer.edition });
+    const label = inRequest ? t("added") : t("add");
     return '<div class="offer"><div><span class="offer-size">' + escapeHtml(sizeText(itemOffer.size)) + "</span>"
-      + '<span class="offer-meta">' + escapeHtml(meta) + '</span><span class="offer-price">' + escapeHtml(money(itemOffer.price)) + '</span></div>'
-      + '<button type="button" class="' + (sold ? "ghost" : "solid") + '" data-add="' + item.id + '" data-variant="' + itemOffer.id + '"'
-      + (sold ? " disabled" : "") + ">" + escapeHtml(label) + "</button></div>";
+      + '<span class="offer-price">' + escapeHtml(money(itemOffer.price)) + '</span></div>'
+      + '<button type="button" class="solid" data-add="' + escapeHtml(item.id) + '" data-variant="' + escapeHtml(itemOffer.id) + '"'
+      + ">" + escapeHtml(label) + "</button></div>";
   }
 
   function openViewer(workId) {
@@ -386,12 +415,12 @@
         : null;
     }
     openWorkId = workId;
-    viewerBody.innerHTML = '<div class="viewer-layout"><img src="' + found.work.image + '" alt="'
+    viewerBody.innerHTML = '<div class="viewer-layout"><img src="' + escapeHtml(found.work.image) + '" alt="'
       + escapeHtml(altText(found.work, found.series)) + '"><div class="viewer-copy"><div class="viewer-tools"><p class="eyebrow">'
       + escapeHtml(t("viewer.acquire")) + '</p><button type="button" class="icon-button" data-close-viewer>'
       + escapeHtml(t("close")) + "</button></div><h3>" + escapeHtml(found.work.title[lang]) + "</h3><p class=\"viewer-year\">"
-      + escapeHtml(seriesTitle(found.series) + (found.series.with ? " · " + found.series.with : "") + " · " + found.work.year)
-      + '</p><div class="offers">' + found.work.offers.map(function (itemOffer) {
+      + escapeHtml([found.series.standalone ? "" : seriesTitle(found.series),found.series.with,found.work.year].filter(Boolean).join(" · "))
+      + '</p><p>'+escapeHtml(found.work.description[lang])+'</p><p>'+escapeHtml(exhibitionPlaces(found.work))+'</p><div class="offers">' + found.work.offers.map(function (itemOffer) {
         return renderOffer(found.work, itemOffer);
       }).join("") + "</div></div></div>";
     if (!viewer.open) viewer.showModal();
@@ -409,10 +438,10 @@
       const itemOffer = found.work.offers.find(function (offer) { return offer.id === entry.variantId; });
       return "<li><div><strong>" + escapeHtml(found.work.title[lang]) + "</strong><div>"
         + escapeHtml(t("kind.print") + " · " + sizeText(itemOffer.size)) + "</div></div><div class=\"request-side\">"
-        + ('<span class="qty"><button type="button" data-qty="-1" data-id="' + entry.workId + '" data-variant="' + entry.variantId + '">−</button><span>'
-          + entry.qty + '</span><button type="button" data-qty="1" data-id="' + entry.workId + '" data-variant="' + entry.variantId + '">+</button></span>')
+        + ('<span class="qty"><button type="button" data-qty="-1" data-id="' + escapeHtml(entry.workId) + '" data-variant="' + escapeHtml(entry.variantId) + '">−</button><span>'
+          + entry.qty + '</span><button type="button" data-qty="1" data-id="' + escapeHtml(entry.workId) + '" data-variant="' + escapeHtml(entry.variantId) + '">+</button></span>')
         + "<span>" + money(itemOffer.price * entry.qty) + "</span>"
-        + '<button type="button" class="icon-button" data-remove="' + entry.workId + '" data-variant="' + entry.variantId + '">'
+        + '<button type="button" class="icon-button" data-remove="' + escapeHtml(entry.workId) + '" data-variant="' + escapeHtml(entry.variantId) + '">'
         + escapeHtml(t("remove")) + "</button></div></li>";
     }).join("");
     const form = requestSent
@@ -440,8 +469,9 @@
 
   function addItem(workId, variantId) {
     const found = findWork(workId);
+    if (!found) return;
     const itemOffer = found.work.offers.find(function (entry) { return entry.id === variantId; });
-    if (!itemOffer || itemOffer.status === "sold") return;
+    if (!itemOffer) return;
     const existing = request.find(function (entry) { return entry.workId === workId && entry.variantId === variantId; });
     if (existing) {
       existing.qty += 1;
@@ -517,7 +547,7 @@
     return new Intl.NumberFormat(locale, {
       style: "currency",
       currency: SITE.currency,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 2
     }).format(amount);
   }
 
