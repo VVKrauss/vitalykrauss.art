@@ -361,9 +361,15 @@
   function place(item) { return [item.venue[lang],item.city[lang]].filter(Boolean).join(", "); }
   function exhibitionPlaces(work) { return SITE.exhibitions.filter(e => e.workIds.includes(work.id)).map(place).filter(Boolean).join(" · "); }
   function renderExhibitions() {
-    exhibitionsRoot.innerHTML='<p class="section-label">'+escapeHtml(t("exhibitions.label"))+"</p>"+SITE.exhibitions.map(function(item) {
-      return '<article class="exhibition"><p>'+escapeHtml(item.startDate+(item.endDate && item.endDate!==item.startDate ? " — "+item.endDate : ""))+"</p><div><h3>"+escapeHtml(item.title[lang])+"</h3><p>"+escapeHtml(place(item))+"</p><p>"+escapeHtml(item.description[lang])+"</p>"+'<div class="exhibition-works">'+item.workIds.map(function(id) {const found=findWork(id);return found ? '<button type="button" class="text-link" data-open-work="'+escapeHtml(id)+'">'+escapeHtml(found.work.title[lang])+"</button>" : "";}).join("")+"</div></div></article>";
-    }).join("");
+    const labels={en:{more:'View exhibition',link:'Exhibition website'},ru:{more:'О выставке',link:'Сайт выставки'},es:{more:'Ver exposición',link:'Web de la exposición'}}[lang];
+    exhibitionsRoot.innerHTML='<p class="section-label">'+escapeHtml(t('exhibitions.label'))+'</p>'+SITE.exhibitions.map(function(item) {
+      const found=item.workIds.map(findWork).find(Boolean);
+      const cover=found ? found.work.image : item.media?.[0]?.image;
+      const href='exhibition.html?id='+encodeURIComponent(item.id);
+      const url=exhibitionLink(item.url);
+      return '<article class="exhibition '+(cover?'with-cover':'')+'">'+(cover?'<a class="exhibition-cover" href="'+href+'" aria-label="'+escapeHtml(item.title[lang])+'"><img src="'+escapeHtml(cover)+'" alt="'+escapeHtml(found?found.work.title[lang]:item.title[lang])+'" loading="lazy"></a>':'')
+        +'<p class="exhibition-date">'+escapeHtml(exhibitionDate(item.startDate)+(item.endDate && item.endDate!==item.startDate ? ' — '+exhibitionDate(item.endDate) : ''))+'</p><div><h3><a href="'+href+'">'+escapeHtml(item.title[lang])+'</a></h3><p>'+escapeHtml(place(item))+'</p><p class="exhibition-summary">'+escapeHtml(item.description[lang])+'</p><div class="exhibition-links"><a class="text-link" href="'+href+'">'+labels.more+' ↗</a>'+(url?'<a class="text-link" href="'+escapeHtml(url)+'" target="_blank" rel="noopener noreferrer">'+labels.link+' ↗</a>':'')+'</div></div></article>';
+    }).join('');
   }
 
   function shopEntries() {

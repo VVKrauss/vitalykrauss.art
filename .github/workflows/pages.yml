@@ -30,7 +30,7 @@ jobs:
       - name: Prepare public site
         run: |
           mkdir -p _site
-          cp index.html favicon.svg CNAME _site/
+          cp index.html exhibition.html favicon.svg CNAME _site/
           cp -R css js images _site/
       - name: Upload site
         uses: actions/upload-pages-artifact@v3

@@ -1,0 +1,11 @@
+# Exhibition pages and media
+
+User requests human-readable dates (10 Feb 2026), exhibition photographs, optional external link, English-first editor/default language, and a separate public exhibition page containing details, works then media.
+
+- Extend existing exhibition records with optional url and mediaIds defaulting to empty, validate http/https only and existing unique image references. Public output exposes only optimized media URLs, never originals. Draft images remain private, archive revokes access, permanent deletion respects shared work/exhibition references.
+- Existing upload processor handles multiple exhibition photos sequentially without creating catalogue works. Editor shows previews/removal, English first and expanded. Filename titles start in English for new works. Dates remain canonical ISO/year in storage and display with English short months in cards/details/library.
+- Main cards show selected work cover (photo fallback), date, description, internal story link and optional compact external link. Standalone exhibition.html?id=... works directly on GitHub Pages. Detail page reads public snapshot, supports persisted language/theme, displays work gallery followed by photographs with enlargement and safe external links. Missing/archive and fetch-failure states supported.
+- Add exhibition.html to Pages allowlist; existing images and old year-only exhibitions remain intact. No invented work/exhibition associations.
+- Verify HTTP privacy/link/archive/shared-image cleanup, real browser upload/publish/deep link/date/English-first/gallery/mobile flows, Linux build/tests, deploy with backup, push main and verify live detail URL.
+
+Verification: all 30 HTTP/auth/content tests pass locally and in the Linux Node 24 production image. Real Edge browser passed multi-photo upload without creating works, English-first editor, save/publish, formatted dates, card cover and external link, separate page/deep-link reload, selected works before media, image enlargement, language switching and 320/375/768/1440 layouts with no JavaScript errors. Production studio updated with source/full volume backup and prior image tag before-exhibitions. Existing production records/credentials preserved; no sample exhibition published to production.

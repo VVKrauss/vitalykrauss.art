@@ -235,3 +235,20 @@ test('deleting an archived series keeps works and shared images; stale deletion 
  state=await (await s.req('/api/studio/delete',{method:'POST',body:{version:state.version,draft:state.draft,kind:'works',id:work.id}})).json();
  assert.equal(state.draft.works.length,1);assert.equal(state.media.length,1);assert.equal((await s.req(m.previewUrl)).status,200);
 });
+
+test('exhibition photos and optional safe links persist, publish privately processed images, and respect archive/deletion',async t=>{
+ const s=await fixture(t);const photo=await (await s.upload(await image(),'event-photo.png')).json();let state=await (await s.req('/api/studio/content')).json();
+ state.draft.exhibitions.push({id:'photos-event',title:{en:'Exhibition',ru:'',es:''},description:text('Описание'),startDate:'2026-02-10',endDate:'',venue:text(''),city:text(''),workIds:[],mediaIds:[photo.id],url:'https://example.com/exhibition',archived:false});
+ state=await (await s.save(state.version,state.draft)).json();assert.equal(state.draft.exhibitions[0].url,'https://example.com/exhibition');
+ assert.equal((await s.req(`/media/${photo.id}/web.webp`,{anonymous:true})).status,404);
+ state=await (await s.req('/api/studio/publish',{method:'POST',body:{version:state.version,draft:state.draft}})).json();
+ let exhibition=(await (await s.req('/api/catalogue',{anonymous:true})).json()).exhibitions[0];
+ assert.equal(exhibition.media.length,1);assert.equal(exhibition.url,'https://example.com/exhibition');assert.equal(exhibition.mediaIds,undefined);assert.equal((await s.req(`/media/${photo.id}/web.webp`,{anonymous:true})).status,200);
+ state.draft.works.push({...artwork(photo),archived:true});
+ state=await (await s.req('/api/studio/delete',{method:'POST',body:{version:state.version,draft:state.draft,kind:'works',id:'work-new'}})).json();assert.equal(state.media.length,1);assert.equal((await s.req(`/media/${photo.id}/web.webp`,{anonymous:true})).status,200);
+ const invalid=structuredClone(state.draft);invalid.exhibitions[0].url='javascript:alert(1)';assert.equal((await s.save(state.version,invalid)).status,400);
+ invalid.exhibitions[0].url='https://example.com';invalid.exhibitions[0].mediaIds=['missing'];assert.equal((await s.save(state.version,invalid)).status,400);
+ state.draft.exhibitions[0].archived=true;state=await (await s.req('/api/studio/publish',{method:'POST',body:{version:state.version,draft:state.draft}})).json();
+ assert.equal((await s.req(`/media/${photo.id}/web.webp`,{anonymous:true})).status,404);
+ state=await (await s.req('/api/studio/delete',{method:'POST',body:{version:state.version,draft:state.draft,kind:'exhibitions',id:'photos-event'}})).json();assert.equal(state.media.length,0);
+});

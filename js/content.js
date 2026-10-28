@@ -301,7 +301,7 @@ window.normalizeCatalogue = function (source, bootstrap) {
   const text = function (value) {
     if (typeof value === "string") value = { en: value };
     value = value || {};
-    const fallback = value.ru || value.en || value.es || "";
+    const fallback = value.en || value.ru || value.es || "";
     return { ru: value.ru || fallback, en: value.en || fallback, es: value.es || fallback };
   };
   const image = function (value) {
@@ -323,5 +323,14 @@ window.normalizeCatalogue = function (source, bootstrap) {
   const standalone = {id:"__standalone",index:"",title:text({en:"Works",ru:"Работы",es:"Obras"}),with:"",statement:{en:[""],ru:[""],es:[""]},works:[],standalone:true};
   works.forEach(w => (groups.find(s => s.id === w.seriesId) || standalone).works.push(w));
   if (standalone.works.length) groups.push(standalone);
-  return {heroWorkId:bootstrap ? "snail" : source.heroWorkId,series:groups,works:works,exhibitions:source.exhibitions.filter(e => !e.archived).map((e,i) => ({...e,id:e.id || "exhibition-"+i,title:text(e.title),description:text(e.description),venue:text(e.venue),city:text(e.city),startDate:e.startDate || e.year || "",endDate:e.endDate || "",workIds:e.workIds || []}))};
+  return {heroWorkId:bootstrap ? "snail" : source.heroWorkId,series:groups,works:works,exhibitions:source.exhibitions.filter(e => !e.archived).map((e,i) => ({...e,id:e.id || "exhibition-"+(i+1),title:text(e.title),description:text(e.description),venue:text(e.venue),city:text(e.city),startDate:e.startDate || e.year || "",endDate:e.endDate || "",workIds:e.workIds || [],media:(e.media || []).map(m=>({...m,image:image(m.image),thumbnail:image(m.thumbnail || m.image)}))}))};
+};
+
+window.exhibitionDate = function(value) {
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(value || ''))return value || '';
+  return new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T00:00:00Z'));
+};
+
+window.exhibitionLink = function(value) {
+  try {const url=new URL(value);return ['https:','http:'].includes(url.protocol) && !url.username && !url.password ? url.href : '';}catch{return '';}
 };

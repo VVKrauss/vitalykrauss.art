@@ -11,9 +11,14 @@ const positive = value => typeof value === 'number' && Number.isFinite(value) &&
 const rounded = value => Math.round(value * 1000) / 1000;
 function translated(value, required = false) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail('Нужен текст для языка.');
-  const result = Object.fromEntries(['ru', 'en', 'es'].map(lang => [lang, string(value[lang] ?? '')]));
+  const result = Object.fromEntries(['en', 'ru', 'es'].map(lang => [lang, string(value[lang] ?? '')]));
   if (required && !Object.values(result).some(Boolean)) fail('Укажите название хотя бы на одном языке.');
   return result;
+}
+function exhibitionURL(value) {
+  const raw=string(value ?? '',2048);if(!raw)return '';
+  try { const url=new URL(raw);if(!['https:','http:'].includes(url.protocol) || url.username || url.password)fail('Ссылка выставки должна начинаться с https:// или http://.');return url.href; }
+  catch {fail('Укажите корректную ссылку выставки с https:// или http://.');}
 }
 function unique(entries) {
   const ids = entries.map(entry => entry.id);
@@ -76,11 +81,13 @@ export function normalizeCatalogue(input, mediaRecords, { draft = false } = {}) 
     const selected = array(item.workIds, 2000).map(identifier);
     if (selected.some(id => !workIds.has(id))) fail('В выставке выбрана неизвестная работа.');
     if (new Set(selected).size !== selected.length) fail('Работа не должна повторяться в одной выставке.');
+    const mediaIds=array(item.mediaIds ?? [],100).map(identifier);
+    if(new Set(mediaIds).size!==mediaIds.length || mediaIds.some(id=>!media.has(id)))fail('Медиаматериал выставки не найден или добавлен повторно.');
     const startDate = date(item.startDate, !draft && !item.archived); const endDate = date(item.endDate ?? '');
     if (endDate && endDate < startDate) fail('Дата окончания не может быть раньше начала.');
     return {
       id: identifier(item.id), title: translated(item.title, !draft && !item.archived), description: translated(item.description),
-      startDate, endDate, venue: translated(item.venue), city: translated(item.city), workIds: selected, archived: archived(item.archived),
+      startDate, endDate, venue: translated(item.venue), city: translated(item.city), workIds: selected, mediaIds, url:exhibitionURL(item.url), archived: archived(item.archived),
     };
   });
   unique(exhibitions);
@@ -104,6 +111,6 @@ export function publicCatalogue(draft, mediaRecords, baseURL, publishedAt) {
     };
   });
   const ids = new Set(works.map(work => work.id));
-  const exhibitions = draft.exhibitions.filter(item => !item.archived).map(({ archived, ...item }) => ({ ...item, workIds: item.workIds.filter(id => ids.has(id)) }));
+  const exhibitions = draft.exhibitions.filter(item => !item.archived).map(({ archived, mediaIds, ...item }) => ({ ...item, url:item.url || '', workIds: item.workIds.filter(id => ids.has(id)), media:(mediaIds || []).map(id=>media.get(id)).filter(Boolean).map(image=>({image:`${baseURL}/media/${image.id}/web.webp`,thumbnail:`${baseURL}/media/${image.id}/thumb.webp`,width:image.web_width,height:image.web_height})) }));
   return { heroWorkId: ids.has(draft.heroWorkId) ? draft.heroWorkId : null, works, series, exhibitions, publishedAt };
 }

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vitaly Krauss</title>
+  <meta name="description" content="Vitaly Krauss, digital artist. Series, exhibitions, prints.">
+  <meta name="theme-color" content="#f5f2eb">
+  <script>
+    try {
+      if (localStorage.getItem('vk-theme') === 'dark') {
+        document.documentElement.dataset.theme = 'dark';
+        document.querySelector('meta[name="theme-color"]').content = '#191a18';
+      }
+    } catch (_) {}
+  </script>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,520;0,9..144,620;1,9..144,520&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <svg class="icon-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+    <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol>
+    <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M20.5 13.5A8.8 8.8 0 0 1 10.5 3 9 9 0 1 0 20.5 13.5Z"/></symbol>
+  </svg>
+  <a class="skip" href="index.html#series" data-i18n="skip">Skip to works</a>
+  <header class="site-header">
+    <a class="wordmark brand-logo" href="index.html" aria-label="Vitaly Krauss"><img src="images/logo-vk.png" alt="" width="54" height="54"></a>
+    <nav class="site-nav" aria-label="Vitaly Krauss">
+      <a href="index.html#series" data-i18n="nav.series">Series</a>
+      <a href="index.html#exhibitions" data-i18n="nav.exhibitions">Exhibitions</a>
+      <a href="index.html#shop" data-i18n="nav.shop">Shop</a>
+      <a href="index.html#about" data-i18n="nav.about">About me</a>
+    </nav>
+    <div class="header-tools">
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch to dark theme">
+        <svg class="theme-icon theme-moon" aria-hidden="true"><use href="#icon-moon"/></svg>
+        <svg class="theme-icon theme-sun" aria-hidden="true"><use href="#icon-sun"/></svg>
+      </button>
+      <div class="langs" role="group" data-i18n-aria="lang.group" aria-label="Language">
+        <button type="button" data-lang="en" lang="en">EN</button>
+        <button type="button" data-lang="ru" lang="ru">RU</button>
+        <button type="button" data-lang="es" lang="es">ES</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="exhibition-page" class="exhibition-page" aria-live="polite"><p>Loading exhibition…</p></main>
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p class="wordmark">Vitaly Krauss</p>
+      <p data-i18n="footer.note">Prints are released by request.</p>
+      <a id="footer-email" href="mailto:kraussvitaliy@gmail.com">kraussvitaliy@gmail.com</a>
+    </div>
+  </footer>
+
+  <dialog id="exhibition-viewer" aria-label="Image preview"><button type="button" class="ghost" data-close-photo>Close ×</button><img alt=""><p></p></dialog>
+  <script src="js/content.js"></script>
+  <script src="js/exhibition.js"></script>
+</body>
+</html>

@@ -53,7 +53,7 @@ export async function createCatalogue(db, dataDirectory, config) {
     if (!item) throw new ContentError('Запись не найдена.',404);
     if (item.archived !== true) throw new ContentError('Окончательно удалить можно только запись из архива.');
     const published = record.published_json ? JSON.parse(record.published_json) : null;
-    const candidates = kind === 'works' ? new Set([item.mediaId,published?.works.find(w=>w.id===id)?.mediaId].filter(Boolean)) : new Set();
+    const candidates = kind === 'works' ? new Set([item.mediaId,published?.works.find(w=>w.id===id)?.mediaId].filter(Boolean)) : kind === 'exhibitions' ? new Set([...(item.mediaIds || []),...(published?.exhibitions.find(e=>e.id===id)?.mediaIds || [])]) : new Set();
     const remove = document => {
       if(!document)return;
       document[kind]=document[kind].filter(entry=>entry.id!==id);
@@ -64,7 +64,7 @@ export async function createCatalogue(db, dataDirectory, config) {
       if(kind==='series')document.works.forEach(work=>{if(work.seriesId===id)work.seriesId=null;});
     };
     remove(draft);remove(published);
-    const unused=[...candidates].filter(mediaId=>![draft,published].some(document=>document?.works.some(work=>work.mediaId===mediaId))).map(media.record).filter(Boolean);
+    const unused=[...candidates].filter(mediaId=>![draft,published].some(document=>(document?.works.some(work=>work.mediaId===mediaId) || document?.exhibitions.some(exhibition=>(exhibition.mediaIds || []).includes(mediaId))))).map(media.record).filter(Boolean);
     db.exec('BEGIN IMMEDIATE');
     try {
       const result=db.prepare('UPDATE studio_catalogue SET draft_json = ?, published_json = ?, published_at = ?, version = version + 1 WHERE id = 1 AND version = ?')
@@ -84,7 +84,8 @@ export async function createCatalogue(db, dataDirectory, config) {
   }
   function publicMedia(id) {
     const record = row();
-    if (!record.published_json || !JSON.parse(record.published_json).works.some(item => !item.archived && item.mediaId === id)) throw new ContentError('Изображение не опубликовано.', 404);
+    const document=record.published_json ? JSON.parse(record.published_json) : null;
+    if (!document || !(document.works.some(item => !item.archived && item.mediaId === id) || document.exhibitions.some(item=>!item.archived && (item.mediaIds || []).includes(id)))) throw new ContentError('Изображение не опубликовано.', 404);
   }
   function print(workId, sizeId) {
     const work = state().draft.works.find(item => item.id === workId);
