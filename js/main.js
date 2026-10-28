@@ -5,29 +5,26 @@
   const shopRoot = document.querySelector("#shop");
   const viewer = document.querySelector("#viewer");
   const viewerBody = document.querySelector("#viewer-body");
-  const requestDialog = document.querySelector("#request-dialog");
-  const requestBody = document.querySelector("#request-body");
   const heroImage = document.querySelector("#hero-image");
 
   const openSeries = new Set(["insecterra", "with-yudochkina"]);
   const slideAt = Object.create(null);
-  const request = [];
+  const request = window.VKCart.items;
   let lang = readPreference("vk-lang") || "en";
   let units = readPreference("vk-units") === "in" ? "in" : "cm";
   let shopAt = 0;
-  let shopSize = "standard";
-  let touchStart = null;
+  let shopSize = readPreference("vk-shop-size") || "standard";
+  let touchStart = null, suppressClickUntil=0;
   let openWorkId = null;
   let viewerOrigin = null;
-  let requestOrigin = "review-request";
-  let requestSent = false;
 
   if (!["en", "ru", "es"].includes(lang)) lang = "en";
 
   document.addEventListener("click", onClick);
   document.addEventListener("keydown", onKeydown);
-  document.addEventListener("submit", onSubmit);
+
   document.addEventListener("touchstart", function (event) {
+    if(event.target.closest('#viewer img') && event.touches.length===1){touchStart={id:'viewer',x:event.touches[0].clientX,y:event.touches[0].clientY};return;}
     const gallery = event.target.closest(".slide-frame[data-slideshow]");
     touchStart = gallery && event.touches.length === 1
       ? { id: gallery.dataset.slideshow, x: event.touches[0].clientX, y: event.touches[0].clientY }
@@ -38,26 +35,23 @@
     const dx = event.changedTouches[0].clientX - touchStart.x;
     const dy = event.changedTouches[0].clientY - touchStart.y;
     if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      stepSlide(touchStart.id, dx < 0 ? 1 : -1, null, false);
+      suppressClickUntil=Date.now()+400;
+      if(touchStart.id==='viewer')stepViewer(dx<0?1:-1);else stepSlide(touchStart.id, dx < 0 ? 1 : -1, null, false);
     }
     touchStart = null;
   }, { passive: true });
   document.addEventListener("touchcancel", function () { touchStart = null; }, { passive: true });
   viewer.addEventListener("click", onBackdrop);
-  requestDialog.addEventListener("click", onBackdrop);
   viewer.addEventListener("close", function () {
     openWorkId = null;
     const origin = viewerOrigin && document.querySelector(viewerOrigin);
     if (origin) origin.focus({ preventScroll: true });
   });
-  requestDialog.addEventListener("close", function () {
-    const origin = document.getElementById(requestOrigin);
-    if (origin) origin.focus({ preventScroll: true });
-  });
 
+
+  let cataloguePending = false, catalogueRevision = '';
   Object.assign(SITE, normalizeCatalogue(SITE, true));
   render();
-  let cataloguePending = false, catalogueRevision = '';
   async function refreshCatalogue() {
     if (cataloguePending) return;
     cataloguePending = true;
@@ -71,12 +65,8 @@
       const normalized = normalizeCatalogue(data, false);
       Object.assign(SITE, normalized); catalogueRevision = revision;
       SITE.series.forEach(s => openSeries.add(s.id));
-      for (let i=request.length-1;i>=0;i--) {
-        const found=findWork(request[i].workId);
-        if (!found || !found.work.offers.some(o => o.id===request[i].variantId)) request.splice(i,1);
-      }
       if (openWorkId && !findWork(openWorkId)) viewer.close();
-      shopAt=0; shopSize=''; render();
+      const selectedWork=readPreference('vk-shop-work');shopAt=Math.max(0,shopEntries().findIndex(entry=>entry.item.id===selectedWork));shopSize=readPreference('vk-shop-size') || '';render();
     } catch (error) { console.warn('Catalogue refresh failed; will retry.',error.message); }
     finally { cataloguePending=false; }
   }
@@ -86,6 +76,7 @@
   setInterval(() => { if (!document.hidden) refreshCatalogue(); }, 30000);
 
   function onClick(event) {
+    if(Date.now()<suppressClickUntil && event.target.closest('.work,#viewer img')){event.preventDefault();return;}
     const unitButton = event.target.closest('[data-unit]');
     if (unitButton) {
       const withinViewer=Boolean(unitButton.closest('#viewer'));units=unitButton.dataset.unit;writePreference('vk-units',units);render();(withinViewer?viewerBody:shopRoot).querySelector(`[data-unit="${units}"]`)?.focus({preventScroll:true});return;
@@ -104,7 +95,7 @@
     }
     const sizeButton = event.target.closest("[data-shop-size]");
     if (sizeButton) {
-      shopSize = sizeButton.dataset.shopSize;
+      shopSize = sizeButton.dataset.shopSize;writePreference('vk-shop-size',shopSize);
       renderShop();
       shopRoot.querySelector('[data-shop-size="' + shopSize + '"]').focus({ preventScroll: true });
       return;
@@ -145,6 +136,7 @@
       return;
     }
 
+    const viewerStep=event.target.closest('[data-viewer-step]');if(viewerStep){stepViewer(Number(viewerStep.dataset.viewerStep));return;}
     const addButton = event.target.closest("[data-add]");
     if (addButton) {
       addItem(addButton.dataset.add, addButton.dataset.variant);
@@ -152,20 +144,13 @@
     }
 
     if (event.target.closest("[data-close-viewer]")) viewer.close();
-    if (event.target.closest("[data-close-request]")) requestDialog.close();
 
-    const qtyButton = event.target.closest("[data-qty]");
-    if (qtyButton) {
-      changeQty(qtyButton.dataset.id, qtyButton.dataset.variant, Number(qtyButton.dataset.qty));
-      return;
-    }
 
-    if (event.target.closest("[data-remove]")) {
-      removeItem(event.target.closest("[data-remove]").dataset.remove, event.target.closest("[data-remove]").dataset.variant);
-    }
   }
 
+  window.addEventListener('cartchange',()=>{renderShop();if(viewer.open && openWorkId)openViewer(openWorkId);});
   function onKeydown(event) {
+    if(viewer.open && ['ArrowRight','ArrowLeft'].includes(event.key)){event.preventDefault();stepViewer(event.key==='ArrowRight'?1:-1);return;}
     const slideshow = event.target.closest("[data-slideshow]");
     if (!slideshow) return;
     if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
@@ -173,53 +158,8 @@
     stepSlide(slideshow.dataset.slideshow, event.key === "ArrowRight" ? 1 : -1);
   }
 
-  function onSubmit(event) {
-    if (event.target.id !== "request-form") return;
-    event.preventDefault();
-    const data = new FormData(event.target);
-    const name = String(data.get("name") || "").trim();
-    const email = String(data.get("email") || "").trim();
-    const note = String(data.get("note") || "").trim();
-    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    if (!name || !validEmail || request.length === 0) {
-      const error = event.target.querySelector(".form-error");
-      if (error) error.hidden = false;
-      return;
-    }
-    const lines = request.map(function (item) {
-      const found = findWork(item.workId);
-      const offer = found.work.offers.find(function (entry) { return entry.id === item.variantId; });
-      return [
-        found.work.title[lang],
-        t("kind.print"),
-        sizeText(offer.size),
-        money(offer.price),
-        "× " + item.qty
-      ].join(" — ");
-    });
-    const body = [
-      "Name: " + name,
-      "Email: " + email,
-      note ? "Note: " + note : "",
-      "",
-      lines.join("\n"),
-      "",
-      t("request.total") + ": " + money(total())
-    ].filter(function (line) { return line !== ""; }).join("\n");
-    const href = "mailto:" + SITE.email
-      + "?subject=" + encodeURIComponent("Vitaly Krauss — " + t("request.title"))
-      + "&body=" + encodeURIComponent(body);
-    requestSent = true;
-    updateCount();
-    renderRequest();
-    const mail = document.createElement("a");
-    mail.href = href;
-    mail.click();
-  }
-
   function onBackdrop(event) {
     if (event.target === viewer) viewer.close();
-    if (event.target === requestDialog) requestDialog.close();
   }
 
   function render() {
@@ -245,13 +185,22 @@
       lede.textContent=heroWork.work.description[lang] || (heroWork.series.standalone ? "" : heroWork.series.statement[lang][0]);
     } else lede.textContent="";
     document.querySelectorAll('[data-unit]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.unit===units)));
+    if(SITE.about){
+      document.querySelector('#about-title').textContent=SITE.about.name[lang];
+      document.querySelector('#about-role').textContent=SITE.about.role[lang];
+      document.querySelector('.about-intro').textContent=SITE.about.intro[lang];
+      document.querySelector('.about-intro').nextElementSibling.textContent=SITE.about.description[lang];
+      const email=document.querySelector('#about-email');email.hidden=!SITE.about.email;email.href='mailto:'+SITE.about.email;email.querySelector('span').textContent=SITE.about.email;
+      const avatar=document.querySelector('#author-avatar');avatar.src=SITE.about.avatar || 'images/author.webp';avatar.alt=SITE.about.name[lang];
+    }
+    window.VKCart.update(SITE.works,lang,units,Boolean(catalogueRevision));
     updateTheme();
     renderSeries();
     renderExhibitions();
     renderShop();
     updateCount();
     if (viewer.open && openWorkId) openViewer(openWorkId);
-    if (requestDialog.open) renderRequest();
+
   }
 
   function renderSeries() {
@@ -394,7 +343,7 @@
     shopAt=shopAt % items.length;
     const entry = items[shopAt];
     const selectedOffer = entry.item.offers.find(function (offer) { return offer.id === shopSize; }) || entry.item.offers[0];
-    shopSize = selectedOffer.id;
+    shopSize = selectedOffer.id;if(catalogueRevision){writePreference('vk-shop-work',entry.item.id);writePreference('vk-shop-size',shopSize);}
     shopRoot.innerHTML = '<p class="section-label">' + escapeHtml(t("shop.label")) + "</p>"
       + '<div class="shop-heading"><h2>' + escapeHtml(t("shop.heading")) + '</h2><p class="shop-intro">' + escapeHtml(t("shop.intro")) + '</p></div>'
       + '<div class="shop-layout">' + renderGallery("shop", items.map(function (value) { return value.item; }), shopAt)
@@ -408,7 +357,7 @@
       }).join('') + '</div>'
       + '<div class="shop-selection" aria-live="polite">' + renderOffer(entry.item, selectedOffer) + '</div>'
       + '<p class="shop-note">' + escapeHtml(t("shop.note")) + '</p>'
-      + '<a class="text-link shop-request" href="#shop" id="review-request">' + escapeHtml(t("request.review")) + '<span id="request-count" hidden>0</span>' + arrowIcon(false) + '</a>'
+      + '<a class="text-link shop-request" href="#shop" id="review-request">' + escapeHtml(t("request.review")) + '' + arrowIcon(false) + '</a>'
       + '</article></div>';
     shopRoot.querySelector(".slide-thumbnails").scrollLeft = stripScroll;
     updateCount();
@@ -416,7 +365,6 @@
     if (focusTarget) focusTarget.focus({ preventScroll: true });
     shopRoot.querySelector("#review-request").addEventListener("click", function (event) {
       event.preventDefault();
-      requestSent = false;
       openRequest();
     });
   }
@@ -432,6 +380,7 @@
       + ">" + escapeHtml(label) + "</button></div>";
   }
 
+  function stepViewer(delta){const found=findWork(openWorkId);if(!found)return;const list=viewerOrigin?.includes('shop')?shopEntries().map(entry=>entry.item):found.series.works;const at=list.findIndex(w=>w.id===openWorkId);if(list.length)openViewer(list[(at+delta+list.length)%list.length].id);}
   function openViewer(workId) {
     const found = findWork(workId);
     if (!found) return;
@@ -442,7 +391,7 @@
         : null;
     }
     openWorkId = workId;
-    viewerBody.innerHTML = '<div class="viewer-layout"><img src="' + escapeHtml(found.work.image) + '" alt="'
+    viewerBody.innerHTML = '<div class="viewer-gallery-controls"><button type="button" class="slide-arrow" data-viewer-step="-1" aria-label="'+escapeHtml(t('slide.prev'))+'">'+arrowIcon(true)+'</button><button type="button" class="slide-arrow" data-viewer-step="1" aria-label="'+escapeHtml(t('slide.next'))+'">'+arrowIcon(false)+'</button></div><div class="viewer-layout"><img src="' + escapeHtml(found.work.image) + '" alt="'
       + escapeHtml(altText(found.work, found.series)) + '"><div class="viewer-copy"><div class="viewer-tools"><p class="eyebrow">'
       + escapeHtml(t("viewer.acquire")) + '</p><button type="button" class="icon-button" data-close-viewer>'
       + escapeHtml(t("close")) + "</button></div><h3>" + escapeHtml(found.work.title[lang]) + "</h3><p class=\"viewer-year\">"
@@ -453,101 +402,9 @@
     if (!viewer.open) viewer.showModal();
   }
 
-  function openRequest() {
-    if (!requestDialog.open) requestOrigin = document.activeElement.id || "review-request";
-    renderRequest();
-    if (!requestDialog.open) requestDialog.showModal();
-  }
-
-  function renderRequest() {
-    const items = request.map(function (entry) {
-      const found = findWork(entry.workId);
-      const itemOffer = found.work.offers.find(function (offer) { return offer.id === entry.variantId; });
-      return "<li><div><strong>" + escapeHtml(found.work.title[lang]) + "</strong><div>"
-        + escapeHtml(t("kind.print") + " · " + sizeText(itemOffer.size)) + "</div></div><div class=\"request-side\">"
-        + ('<span class="qty"><button type="button" data-qty="-1" data-id="' + escapeHtml(entry.workId) + '" data-variant="' + escapeHtml(entry.variantId) + '">−</button><span>'
-          + entry.qty + '</span><button type="button" data-qty="1" data-id="' + escapeHtml(entry.workId) + '" data-variant="' + escapeHtml(entry.variantId) + '">+</button></span>')
-        + "<span>" + money(itemOffer.price * entry.qty) + "</span>"
-        + '<button type="button" class="icon-button" data-remove="' + escapeHtml(entry.workId) + '" data-variant="' + escapeHtml(entry.variantId) + '">'
-        + escapeHtml(t("remove")) + "</button></div></li>";
-    }).join("");
-    const form = requestSent
-      ? '<p class="thanks">' + escapeHtml(tf("request.thanks", { email: SITE.email })) + "</p>"
-      : request.length === 0
-        ? '<p class="thanks">' + escapeHtml(t("request.empty")) + "</p>"
-        : '<p class="request-total">' + escapeHtml(t("request.total")) + " " + money(total()) + "</p>"
-          + '<form id="request-form" class="request-form">'
-          + field("name", t("request.name"), "text", true)
-          + field("email", t("request.email"), "email", true)
-          + '<label>' + escapeHtml(t("request.note")) + '<textarea name="note"></textarea></label>'
-          + '<p class="form-error" hidden>' + escapeHtml(t("request.invalid")) + "</p>"
-          + '<button class="solid" type="submit">' + escapeHtml(t("request.send")) + "</button></form>";
-    requestBody.innerHTML = '<div class="request-panel"><div class="request-head"><h2>'
-      + escapeHtml(t("request.title")) + '</h2><button type="button" class="icon-button" data-close-request>'
-      + escapeHtml(t("close")) + "</button></div><ul class=\"request-list\">" + items + "</ul>" + form + "</div>";
-  }
-
-  function field(name, label, type, required) {
-    const inputType = type === "email" ? "text" : type;
-    const extra = type === "email" ? ' inputmode="email" autocomplete="email"' : "";
-    return "<label>" + escapeHtml(label)
-      + '<input name="' + name + '" type="' + inputType + '"' + extra + (required ? " required" : "") + "></label>";
-  }
-
-  function addItem(workId, variantId) {
-    const found = findWork(workId);
-    if (!found) return;
-    const itemOffer = found.work.offers.find(function (entry) { return entry.id === variantId; });
-    if (!itemOffer) return;
-    const existing = request.find(function (entry) { return entry.workId === workId && entry.variantId === variantId; });
-    if (existing) {
-      existing.qty += 1;
-    } else {
-      request.push({ workId: workId, variantId: variantId, qty: 1 });
-    }
-    requestSent = false;
-    updateCount();
-    renderShop();
-    if (viewer.open) openViewer(workId);
-    if (requestDialog.open) renderRequest();
-  }
-
-  function changeQty(workId, variantId, delta) {
-    const existing = request.find(function (entry) { return entry.workId === workId && entry.variantId === variantId; });
-    if (!existing) return;
-    existing.qty += delta;
-    if (existing.qty < 1) removeItem(workId, variantId);
-    else renderRequest();
-    updateCount();
-    renderShop();
-  }
-
-  function removeItem(workId, variantId) {
-    const index = request.findIndex(function (entry) { return entry.workId === workId && entry.variantId === variantId; });
-    if (index >= 0) request.splice(index, 1);
-    updateCount();
-    renderShop();
-    if (viewer.open && openWorkId) openViewer(openWorkId);
-    if (requestDialog.open) renderRequest();
-  }
-
-  function updateCount() {
-    const count = request.reduce(function (sum, entry) { return sum + entry.qty; }, 0);
-    const countNode = shopRoot.querySelector("#request-count");
-    if (countNode) {
-      countNode.textContent = String(count);
-      countNode.hidden = count === 0;
-    }
-  }
-
-  function total() {
-    return request.reduce(function (sum, entry) {
-      const found = findWork(entry.workId);
-      const itemOffer = found.work.offers.find(function (offer) { return offer.id === entry.variantId; });
-      return sum + itemOffer.price * entry.qty;
-    }, 0);
-  }
-
+  function openRequest(){window.VKCart.open();}
+  function addItem(workId,variantId){window.VKCart.add(workId,variantId);renderShop();if(viewer.open)openViewer(workId);}
+  function updateCount(){window.VKCart.render();}
   function findWork(id) {
     for (let i = 0; i < SITE.series.length; i += 1) {
       const series = SITE.series[i];
@@ -567,14 +424,14 @@
 
   function unitControls() {
     const label={ru:'Единицы измерения',en:'Measurement units',es:'Unidades de medida'}[lang];
-    return '<div class="measurement-units" role="group" aria-label="'+label+'"><button type="button" data-unit="cm" aria-pressed="'+(units==='cm')+'">sm</button><span aria-hidden="true">|</span><button type="button" data-unit="in" aria-pressed="'+(units==='in')+'">inch</button></div>';
+    return '<div class="measurement-units" role="group" aria-label="'+label+'"><button type="button" data-unit="cm" aria-pressed="'+(units==='cm')+'">cm</button><span aria-hidden="true">|</span><button type="button" data-unit="in" aria-pressed="'+(units==='in')+'">in</button></div>';
   }
 
   function sizeText(size) {
     const values = size.match(/[\d.]+/g);
     if (!values || values.length < 2) return size;
     const divisor = units === 'in' ? 2.54 : 1;
-    const label = units === 'in' ? (lang === 'ru' ? 'дюйм' : 'in') : t('unit.cm');
+    const label = units;
     return Math.round(Number(values[0])/divisor)+' × '+Math.round(Number(values[1])/divisor)+' '+label;
   }
 

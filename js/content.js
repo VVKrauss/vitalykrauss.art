@@ -31,7 +31,7 @@ window.SITE = {
       "shop.heading": "A work for your space",
       "shop.size": "Print size",
       "shop.note": "Purchases are arranged personally with the studio. Send a request to discuss the print size and delivery.",
-      "request.review": "Review your request",
+      "request.review": "View your cart",
       "series.label": "Series",
       "series.count": "{n} works",
       "slide.prev": "Previous",
@@ -44,8 +44,8 @@ window.SITE = {
       "status.available": "Available",
       "status.sold": "Sold",
       "edition": "Edition of {n}",
-      "add": "Add to request",
-      "added": "In request",
+      "add": "Add to cart",
+      "added": "In your cart",
       "close": "Close",
       "remove": "Remove",
       "request.title": "Request",
@@ -67,7 +67,7 @@ window.SITE = {
       "about.intro": "Я — цифровой художник. Работаю с изображением, цветом и привычными формами, чтобы замечать то, что обычно ускользает от внимания.",
       "about.text": "В серии Insecterra я обращаюсь к тихому присутствию мира насекомых. Цвет становится акцентом: помогает направить взгляд и увидеть знакомое с другой стороны.",
       "about.contact": "Связаться со мной",
-      "unit.cm": "см",
+      "unit.cm": "cm",
       "meta.title": "Vitaly Krauss",
       "meta.description": "Vitaly Krauss, цифровой художник. Серии, выставки, принты.",
       "skip": "К работам",
@@ -88,7 +88,7 @@ window.SITE = {
       "shop.heading": "Работа для вашего пространства",
       "shop.size": "Размер принта",
       "shop.note": "Покупка обсуждается лично со студией. Отправьте запрос, чтобы обсудить размер принта и доставку.",
-      "request.review": "Посмотреть запрос",
+      "request.review": "Посмотреть корзину",
       "series.label": "Серии",
       "series.count": "{n} работ",
       "slide.prev": "Назад",
@@ -101,8 +101,8 @@ window.SITE = {
       "status.available": "Доступно",
       "status.sold": "Продано",
       "edition": "Тираж {n}",
-      "add": "В запрос",
-      "added": "В запросе",
+      "add": "Добавить в корзину",
+      "added": "В корзине",
       "close": "Закрыть",
       "remove": "Убрать",
       "request.title": "Запрос",
@@ -145,7 +145,7 @@ window.SITE = {
       "shop.heading": "Una obra para tu espacio",
       "shop.size": "Tamaño de la impresión",
       "shop.note": "La compra se acuerda personalmente con el estudio. Envía una solicitud para acordar el tamaño de la lámina y el envío.",
-      "request.review": "Ver tu solicitud",
+      "request.review": "Ver carrito",
       "series.label": "Series",
       "series.count": "{n} obras",
       "slide.prev": "Anterior",
@@ -158,8 +158,8 @@ window.SITE = {
       "status.available": "Disponible",
       "status.sold": "Vendida",
       "edition": "Tirada de {n}",
-      "add": "Añadir",
-      "added": "En la solicitud",
+      "add": "Añadir al carrito",
+      "added": "En el carrito",
       "close": "Cerrar",
       "remove": "Quitar",
       "request.title": "Solicitud",
@@ -322,8 +322,9 @@ window.normalizeCatalogue = function (source, bootstrap) {
   });
   const standalone = {id:"__standalone",index:"",title:text({en:"Works",ru:"Работы",es:"Obras"}),with:"",statement:{en:[""],ru:[""],es:[""]},works:[],standalone:true};
   works.forEach(w => (groups.find(s => s.id === w.seriesId) || standalone).works.push(w));
+  if(!bootstrap)groups.forEach(group=>{const ids=source.series.find(s=>s.id===group.id)?.workIds || [];group.works.sort((a,b)=>(ids.includes(a.id)?ids.indexOf(a.id):9999)-(ids.includes(b.id)?ids.indexOf(b.id):9999));});
   if (standalone.works.length) groups.push(standalone);
-  return {heroWorkId:bootstrap ? "snail" : source.heroWorkId,series:groups,works:works,exhibitions:source.exhibitions.filter(e => !e.archived).map((e,i) => ({...e,id:e.id || "exhibition-"+(i+1),title:text(e.title),description:text(e.description),venue:text(e.venue),city:text(e.city),startDate:e.startDate || e.year || "",endDate:e.endDate || "",workIds:e.workIds || [],media:(e.media || []).map(m=>({...m,image:image(m.image),thumbnail:image(m.thumbnail || m.image)}))}))};
+  return {about:source.about?{...source.about,name:text(source.about.name),role:text(source.about.role),intro:text(source.about.intro),description:text(source.about.description),avatar:source.about.avatar?image(source.about.avatar):null}:null,heroWorkId:bootstrap ? "snail" : source.heroWorkId,series:groups,works:works,exhibitions:source.exhibitions.filter(e => !e.archived).map((e,i) => ({...e,id:e.id || "exhibition-"+(i+1),title:text(e.title),description:text(e.description),venue:text(e.venue),city:text(e.city),startDate:e.startDate || e.year || "",endDate:e.endDate || "",workIds:e.workIds || [],media:(e.media || []).map(m=>({...m,image:image(m.image),thumbnail:image(m.thumbnail || m.image)}))}))};
 };
 
 window.exhibitionDate = function(value) {

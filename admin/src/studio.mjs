@@ -1,3 +1,4 @@
+import {mountRequests} from './requests.mjs';
 import express from 'express';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdir } from 'node:fs/promises';
@@ -44,7 +45,8 @@ export async function createStudio(config) {
     req.headers['x-studio-client-ip'] = req.ip;
     res.set({
       'Cache-Control': 'no-store',
-      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+      // Cropper's custom elements insert their own styles; script execution remains restricted to local files.
+      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
       'X-Robots-Tag': 'noindex, nofollow',
@@ -53,7 +55,9 @@ export async function createStudio(config) {
     });
     if (config.production) res.set('Strict-Transport-Security', 'max-age=31536000');
     if (req.headers.host !== new URL(config.baseURL).host) return res.status(421).json({ error: 'Invalid host' });
-    if (req.path.startsWith('/api/') && !(req.path === '/api/catalogue' && ['GET', 'HEAD'].includes(req.method))) {
+    // Public request CORS is narrowly checked in mountRequests; every Studio mutation keeps its exact-origin guard.
+    const publicRoute=(req.path === '/api/catalogue' && ['GET','HEAD'].includes(req.method)) || (req.path === '/api/requests' && ['POST','OPTIONS'].includes(req.method));
+    if (req.path.startsWith('/api/') && !publicRoute) {
       const origin = req.headers.origin;
       if ((origin && origin !== config.baseURL) || (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && origin !== config.baseURL)) {
         return res.status(403).json({ error: 'Forbidden origin' });
@@ -84,11 +88,12 @@ export async function createStudio(config) {
   app.get('/api/studio/session', (req, res) => res.json({ user: res.locals.owner }));
   mountPrivateContent(app, catalogue);
   mountPublicContent(app, catalogue);
+  mountRequests(app,db,catalogue,config);
 
   // Explicit files only: never expose admin/, the repository, secrets or data as a static root.
   app.get('/', (req, res) => res.sendFile(join(adminRoot, 'public/index.html')));
   app.get(['/exhibitions','/exhibitions/:id/edit','/series','/series/:id/edit'],(req,res)=>res.sendFile(join(adminRoot,'public/index.html')));
-  for (const file of ['app.js', 'styles.css', 'content.js', 'content.css', 'toast.js', 'logo.png']) {
+  for (const file of ['app.js', 'styles.css', 'content.js', 'content.css', 'toast.js', 'logo.png', 'sortable.min.js', 'cropper.min.js', 'vendor-licenses.txt', 'favicon.svg', 'author.webp']) {
     app.get(`/assets/${file}`, (req, res) => res.sendFile(join(adminRoot, 'public', file)));
   }
   app.get('/assets/auth-client.js', (req, res) => res.sendFile(join(adminRoot, 'dist/auth-client.js')));

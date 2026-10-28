@@ -1,3 +1,4 @@
+import {defaultAbout} from './about.mjs';
 export class ContentError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
 }
@@ -93,9 +94,21 @@ export function normalizeCatalogue(input, mediaRecords, { draft = false } = {}) 
     };
   });
   unique(exhibitions);
+  for(const group of series){
+    const linked=works.filter(w=>w.seriesId===group.id).map(w=>w.id);
+    const ordered=array(input.series.find(s=>s.id===group.id).workIds ?? []).map(identifier);
+    if(new Set(ordered).size!==ordered.length)fail('Работа не должна повторяться в серии.');
+    group.workIds=[...ordered.filter(id=>linked.includes(id)),...linked.filter(id=>!ordered.includes(id))];
+  }
+  const source=input.about ?? defaultAbout();
+  const avatarMediaId=source.avatarMediaId || null;
+  if(avatarMediaId && !media.has(identifier(avatarMediaId)))fail('Аватар не найден. Загрузите изображение.');
+  const email=string(source.email ?? '',254);
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))fail('Укажите корректную почту автора.');
+  const about={name:translated(source.name),role:translated(source.role),intro:translated(source.intro),description:translated(source.description),email,avatarMediaId};
   const heroWorkId = input.heroWorkId || null;
   if (heroWorkId && !works.some(item => item.id === heroWorkId && !item.archived)) fail('Заглавная работа должна быть активной. Сначала выберите другую или выключите тумблер.');
-  return { heroWorkId, works, series, exhibitions };
+  return { heroWorkId, works, series, exhibitions, about };
 }
 
 export function publicCatalogue(draft, mediaRecords, baseURL, publishedAt) {
@@ -114,5 +127,9 @@ export function publicCatalogue(draft, mediaRecords, baseURL, publishedAt) {
   });
   const ids = new Set(works.map(work => work.id));
   const exhibitions = draft.exhibitions.filter(item => !item.archived).map(({ archived, mediaIds, ...item }) => ({ ...item, url:item.url || '', workIds: item.workIds.filter(id => ids.has(id)), media:(mediaIds || []).map(id=>media.get(id)).filter(Boolean).map(image=>({image:`${baseURL}/media/${image.id}/web.webp`,thumbnail:`${baseURL}/media/${image.id}/thumb.webp`,width:image.web_width,height:image.web_height})) }));
-  return { heroWorkId: ids.has(draft.heroWorkId) ? draft.heroWorkId : null, works, series, exhibitions, publishedAt };
+  const about=draft.about ?? defaultAbout();
+  const avatar=about.avatarMediaId && media.get(about.avatarMediaId);
+  const publicAbout={name:about.name,role:about.role,intro:about.intro,description:about.description,email:about.email,avatar:avatar?`${baseURL}/media/${avatar.id}/web.webp`:null};
+  series.forEach(group=>{group.workIds=(group.workIds || works.filter(w=>w.seriesId===group.id).map(w=>w.id)).filter(id=>ids.has(id));});
+  return {about:publicAbout, heroWorkId: ids.has(draft.heroWorkId) ? draft.heroWorkId : null, works, series, exhibitions, publishedAt };
 }

@@ -289,3 +289,46 @@ test('print export uses selected work DPI for smaller print variants',async t=>{
  const s=await fixture(t);const media=await(await s.upload(await image())).json();let state=await(await s.req('/api/studio/content')).json();const work=artwork(media);work.printDpi=150;work.sizes.push({id:'small-dpi',widthCm:10,heightCm:5,price:20});state.draft.works.push(work);const saved=await s.save(state.version,state.draft);assert.equal(saved.status,200);
  const response=await s.req('/api/studio/works/work-new/print/small-dpi');assert.equal(response.status,200);const info=await sharp(Buffer.from(await response.arrayBuffer())).metadata();assert.equal(info.width,Math.round(10/2.54*150));assert.equal(info.density,150);
 });
+
+test('series ordering and About draft publish preserve separate visibility', async t => {
+ const s=await fixture(t,true);let data=s.catalogue.state();
+ const group=data.draft.series[0];const ids=data.draft.works.filter(w=>w.seriesId===group.id).map(w=>w.id).reverse();group.workIds=ids;
+ data.draft.about={name:{en:'Artist',ru:'Автор',es:''},role:{en:'Digital artist',ru:'',es:''},intro:{en:'New intro',ru:'',es:''},description:{en:'Biography',ru:'',es:''},email:'artist@example.test',avatarMediaId:null};
+ let saved=await (await s.save(data.version,data.draft)).json();assert.deepEqual(saved.draft.series[0].workIds,ids);assert.notEqual(s.catalogue.published().about.name.en,'Artist');
+ const response=await s.req('/api/studio/publish',{method:'POST',body:{version:saved.version,draft:saved.draft}});assert.equal(response.status,200);
+ assert.deepEqual(s.catalogue.published().series[0].workIds,ids);assert.equal(s.catalogue.published().about.email,'artist@example.test');
+});
+
+test('public requests validate published variants, are idempotent and stay owner-only', async t => {
+ const s=await fixture(t,true);const catalogue=s.catalogue.published(),work=catalogue.works.find(w=>w.sizes.some(v=>v.price));const variant=work.sizes.find(v=>v.price);
+ const body={clientRequestId:'11111111-1111-4111-8111-111111111111',email:'buyer@example.test',name:'Buyer',note:'Please contact me',items:[{workId:work.id,variantId:variant.id,qty:2}],units:'in',lang:'en'};
+ const submit=()=>s.req('/api/requests',{method:'POST',anonymous:true,body,origin:'https://vitalykrauss.art'});
+ const first=await submit();assert.equal(first.status,201);assert.equal((await submit()).status,200);
+ assert.equal((await s.req('/api/studio/requests',{anonymous:true})).status,401);
+ const inbox=await (await s.req('/api/studio/requests')).json();assert.equal(inbox.unread,1);assert.equal(inbox.requests.length,1);const entry=inbox.requests[0];assert.equal(entry.email,body.email);assert.equal(entry.items[0].price,variant.price);assert.equal(entry.items[0].qty,2);assert.equal(entry.items[0].widthCm,variant.widthCm);assert.ok(entry.items[0].title.en);assert.ok(!JSON.stringify(entry).includes('original'));
+ assert.equal((await s.req(`/api/studio/requests/${entry.id}`,{method:'PATCH',body:{read:true,status:'handled'}})).status,200);assert.equal((await (await s.req('/api/studio/requests')).json()).unread,0);
+ body.clientRequestId='22222222-2222-4222-8222-222222222222';body.items[0].variantId='missing';assert.equal((await submit()).status,409);
+ assert.equal((await s.req('/api/requests',{method:'POST',anonymous:true,body,origin:'https://evil.test'})).status,403);
+ assert.equal((await s.req('/api/requests',{method:'POST',anonymous:true,body,origin:''})).status,403);
+});
+
+test('request rate limits, CORS, invalid data and price changes do not create inbox records', async t => {
+ const s=await fixture(t,true);const catalogue=s.catalogue.published(),work=catalogue.works.find(w=>w.sizes.some(v=>v.price)),variant=work.sizes.find(v=>v.price);
+ const body={email:'buyer@example.test',name:'<img src=x>',items:[{workId:work.id,variantId:variant.id,qty:1}],clientRequestId:'33333333-3333-4333-8333-333333333333'};
+ const send=()=>s.req('/api/requests',{method:'POST',anonymous:true,body,origin:'https://vitalykrauss.art'});
+ assert.equal((await s.req('/api/requests',{method:'OPTIONS',anonymous:true,origin:'https://vitalykrauss.art'})).headers.get('Access-Control-Allow-Origin'),'https://vitalykrauss.art');
+ body.email='invalid';assert.equal((await send()).status,400);body.email='buyer@example.test';body.items[0].qty=0;assert.equal((await send()).status,400);body.items[0].qty=1;
+ body.items[0].quotedPrice=variant.price+1;assert.equal((await send()).status,409);delete body.items[0].quotedPrice;
+ for(let i=0;i<5;i++){body.clientRequestId=`44444444-4444-4444-8444-${String(i).padStart(12,'0')}`;assert.equal((await send()).status,201);}
+ body.clientRequestId='55555555-5555-4555-8555-555555555555';const limited=await send();assert.equal(limited.status,429);assert.ok(Number(limited.headers.get('Retry-After'))>0);
+ const inbox=await (await s.req('/api/studio/requests')).json();assert.equal(inbox.requests.length,5);
+ assert.equal((await s.req('/api/studio/requests/'+inbox.requests[0].id,{method:'PATCH',anonymous:true,body:{read:true}})).status,401);
+ assert.equal((await s.req('/api/studio/requests/'+inbox.requests[0].id,{method:'PATCH',body:{status:'invented'}})).status,400);
+});
+
+test('About avatar stays private until publication and cannot be deleted with an archived work', async t => {
+ const s=await fixture(t);const uploaded=await (await s.upload(await image())).json();let data=s.catalogue.state();data.draft.about.avatarMediaId=uploaded.id;data.draft.works=[{...artwork(uploaded),archived:true}];
+ const saved=await (await s.save(data.version,data.draft)).json();assert.equal((await s.req(`/media/${uploaded.id}/web.webp`,{anonymous:true})).status,404);
+ const published=await (await s.req('/api/studio/publish',{method:'POST',body:{version:saved.version,draft:saved.draft}})).json();assert.equal((await s.req(`/media/${uploaded.id}/web.webp`,{anonymous:true})).status,200);
+ const result=await s.req('/api/studio/delete',{method:'POST',body:{version:published.version,draft:published.draft,kind:'works',id:'work-new'}});assert.equal(result.status,200);assert.ok(s.catalogue.media.record(uploaded.id));assert.equal((await s.req(`/media/${uploaded.id}/web.webp`,{anonymous:true})).status,200);
+});

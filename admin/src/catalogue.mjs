@@ -1,3 +1,4 @@
+import {defaultAbout} from './about.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { adminRoot } from './config.mjs';
@@ -26,7 +27,7 @@ export async function createCatalogue(db, dataDirectory, config) {
   }
   function state() {
     const record = row();
-    return { version: record.version, draft: JSON.parse(record.draft_json), publishedAt: record.published_at, media: media.list().map(media.describe) };
+    return { version: record.version, draft: {about:defaultAbout(),...JSON.parse(record.draft_json)}, publishedAt: record.published_at, media: media.list().map(media.describe) };
   }
   function save(version, draft) {
     if (!Number.isSafeInteger(version) || version < 1) throw new ContentError('Некорректная версия каталога.');
@@ -71,12 +72,13 @@ export async function createCatalogue(db, dataDirectory, config) {
       document[kind]=document[kind].filter(entry=>entry.id!==id);
       if(kind==='works') {
         if(document.heroWorkId===id)document.heroWorkId=null;
+        document.series.forEach(series=>{if(series.workIds)series.workIds=series.workIds.filter(workId=>workId!==id);});
         document.exhibitions.forEach(exhibition=>{exhibition.workIds=exhibition.workIds.filter(workId=>workId!==id);});
       }
       if(kind==='series')document.works.forEach(work=>{if(work.seriesId===id)work.seriesId=null;});
     };
     remove(draft);remove(published);
-    const unused=[...candidates].filter(mediaId=>![draft,published].some(document=>(document?.works.some(work=>work.mediaId===mediaId) || document?.exhibitions.some(exhibition=>(exhibition.mediaIds || []).includes(mediaId))))).map(media.record).filter(Boolean);
+    const unused=[...candidates].filter(mediaId=>![draft,published].some(document=>(document?.about?.avatarMediaId===mediaId || document?.works.some(work=>work.mediaId===mediaId) || document?.exhibitions.some(exhibition=>(exhibition.mediaIds || []).includes(mediaId))))).map(media.record).filter(Boolean);
     db.exec('BEGIN IMMEDIATE');
     try {
       const result=db.prepare('UPDATE studio_catalogue SET draft_json = ?, published_json = ?, published_at = ?, version = version + 1 WHERE id = 1 AND version = ?')
@@ -97,7 +99,7 @@ export async function createCatalogue(db, dataDirectory, config) {
   function publicMedia(id) {
     const record = row();
     const document=record.published_json ? JSON.parse(record.published_json) : null;
-    if (!document || !(document.works.some(item => !item.archived && item.mediaId === id) || document.exhibitions.some(item=>!item.archived && (item.mediaIds || []).includes(id)))) throw new ContentError('Изображение не опубликовано.', 404);
+    if (!document || !(document.about?.avatarMediaId===id || document.works.some(item => !item.archived && item.mediaId === id) || document.exhibitions.some(item=>!item.archived && (item.mediaIds || []).includes(id)))) throw new ContentError('Изображение не опубликовано.', 404);
   }
   function print(workId, sizeId) {
     const work = state().draft.works.find(item => item.id === workId);

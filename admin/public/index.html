@@ -5,13 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Studio — Vitaly Krauss</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23292b27' d='M4 5h5l7 20 7-20h5L18 28h-4Z'/%3E%3C/svg%3E">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/styles.css"><link rel="stylesheet" href="/assets/content.css">
+  <script src="/assets/sortable.min.js"></script>
+  <script src="/assets/cropper.min.js"></script>
   <script type="module" src="/assets/app.js"></script>
 </head>
 <body>
   <header class="header">
     <a class="wordmark" href="/" aria-label="Vitaly Krauss Studio"><img class="studio-logo" src="/assets/logo.png" alt="VK"><span>Studio</span></a>
+    <button id="request-bell" class="text-button" type="button" aria-label="Запросы покупателей" hidden><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span id="unread-requests" hidden>0</span></button>
     <button id="sign-out" class="text-button" type="button" hidden>Выйти</button>
     <span id="private-label" class="eyebrow">Личное пространство</span>
   </header>
