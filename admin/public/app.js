@@ -1,3 +1,4 @@
+import { showToast, dismissToast } from './toast.js';
 import { initializeContent, resetContent } from './content.js';
 import { authClient } from './auth-client.js';
 
@@ -6,6 +7,7 @@ let busy = false;
 let signedIn = false;
 
 function message(text = '', error = false) {
+  if(text)showToast(text,{error});else dismissToast();
   const node = $('#message');
   node.textContent = text;
   node.hidden = !text;

@@ -1,3 +1,4 @@
+import { showToast, dismissToast } from './toast.js';
 const root = document.querySelector('#content-root');
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const title = item => item?.title?.ru || item?.title?.en || item?.title?.es || 'Без названия';
@@ -11,7 +12,7 @@ const dimension = value => value == null || value === '' ? '' : Math.round(Numbe
 function rememberTab() { tabState[tab] = {selected,archive}; }
 function busyControls(value) { root.querySelectorAll('button,input,textarea,select').forEach(node => { if(value){node.dataset.busyDisabled=String(node.disabled);node.disabled=true;}else if(node.dataset.busyDisabled!==undefined){node.disabled=node.dataset.busyDisabled==='true';delete node.dataset.busyDisabled;} }); root.setAttribute('aria-busy',String(value)); if (!value) status(); }
 const media = id => state?.media.find(m => m.id === id);
-const notify = (value, error = false) => { const node = root.querySelector('#content-message'); if (node) { node.textContent = value; node.dataset.error = error; } const modal=root.querySelector('.modal-message');if(modal){modal.textContent=value;modal.dataset.error=error;} };
+const notify = (value, error = false, progress = false) => { showToast(value,{error,progress}); const node = root.querySelector('#content-message'); if (node) { node.textContent = value; node.dataset.error = error; } const modal=root.querySelector('.modal-message');if(modal){modal.textContent=value;modal.dataset.error=error;} };
 async function request(url, options = {}) {
  const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 30000);
  try {
@@ -33,7 +34,7 @@ function uploadImage(file, progress) {
  });
 }
 export function initializeContent(id) { if (owner && owner !== id) { state = null; dirty = false; } owner = id; if (state) { if (!root.children.length) render(); return; } if (loading) return; const epoch = generation; root.textContent = 'Загружаем каталог…'; loading = request('/api/studio/content').then(data => { if (epoch !== generation) return; state = data; render(); }).catch(error => { root.textContent = error.message; const retry = document.createElement('button'); retry.textContent = 'Повторить'; retry.onclick = () => initializeContent(id); root.append(retry); }).finally(() => { loading = null; }); }
-export function resetContent({discard = false} = {}) { if (!discard) return; generation++; loading = null; state = null; owner = null; dirty = false; selected = null; modalWorkId = null; modalExhibitionId = null; modalSeriesId = null; archive = false; tab = "works"; for (const key of Object.keys(tabState)) delete tabState[key]; root.replaceChildren(); }
+export function resetContent({discard = false} = {}) { if (!discard) return; dismissToast(); generation++; loading = null; state = null; owner = null; dirty = false; selected = null; modalWorkId = null; modalExhibitionId = null; modalSeriesId = null; archive = false; tab = "works"; for (const key of Object.keys(tabState)) delete tabState[key]; root.replaceChildren(); }
 function change() { dirty = true; status(); }
 function status() { const node = root.querySelector('#draft-status'); if (node) node.textContent = dirty ? 'Есть несохранённые изменения' : 'Черновик сохранён'; const publish = root.querySelector('#publish-content'); if (publish) publish.disabled = pending; root.querySelectorAll('.print-export').forEach(link => { if (!link.dataset.href) link.dataset.href = link.getAttribute('href') || ''; if (dirty) { link.removeAttribute('href'); link.setAttribute('aria-disabled','true'); link.title='Сначала сохраните черновик'; } else { link.href=link.dataset.href; link.removeAttribute('aria-disabled'); link.removeAttribute('title'); } }); }
 const button = (label, action, cls = 'ghost') => `<button type="button" class="${cls}" data-action="${action}">${label}</button>`;
@@ -77,7 +78,7 @@ async function uploadFiles(files, context) {
  const localURL=URL.createObjectURL(files[0]);const zone=root.querySelector(`[data-dropzone="${context}"]`);
  const preview=document.createElement('div');preview.className='upload-preview';preview.innerHTML=`<img src="${esc(localURL)}" alt="Предпросмотр выбранного изображения"><p role="status">Загружаем изображение…</p>`;zone?.after(preview);
  try {
-  const result=await uploadImage(files[0],percent=>{const label=percent===100?'Файл получен. Подготавливаем превью…':`Загрузка${percent===null?'':` · ${percent}%`}`;preview.querySelector('p').textContent=label;notify(label);});
+  const result=await uploadImage(files[0],percent=>{const label=percent===100?'Файл получен. Подготавливаем превью…':`Загрузка${percent===null?'':` · ${percent}%`}`;preview.querySelector('p').textContent=label;notify(label,false,true);});
   if(epoch!==generation)return;const record=result.media||result;state.media.push(record);
   if(replacing){replacing.mediaId=record.id;replacing.maxWidthCm=null;replacing.maxHeightCm=null;replacing.sizes=[];}
   else {const work=createWork(record);work.seriesId=modalSeriesId;state.draft.works.push(work);if(exhibition)exhibition.workIds.push(work.id);modalWorkId=work.id;selected=tab==='works'?work.id:selected;archive=false;}
@@ -109,7 +110,7 @@ async function act(action) { if (pending) return; const item=current(); if(actio
   const kind=editingKind();const id=item.id;
   const consequences={works:'Работа будет удалена из каталога и всех выставок. Неиспользуемые оригинал и превью тоже будут удалены.',series:'Серия будет удалена. Её работы сохранятся без привязки к серии.',exhibitions:'Выставка будет удалена. Все её работы сохранятся в библиотеке.'};
   if(!await confirmAction(`Удалить «${title(item)}» навсегда? ${consequences[kind]} Восстановить запись в студии будет невозможно. Удаление сразу отразится на сайте. Остальные изменения сохранятся в черновике.`,'Удалить навсегда'))return;
-  pending=true;busyControls(true);const epoch=generation;notify('Удаляем запись…');
+  pending=true;busyControls(true);const epoch=generation;notify('Удаляем запись…',false,true);
   try {
    const result=await request('/api/studio/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:state.version,draft:state.draft,kind,id})});
    if(epoch!==generation)return;state=result;dirty=false;modalWorkId=null;modalExhibitionId=null;modalSeriesId=null;selected=null;render();notify(result.cleanupWarning || 'Запись удалена навсегда. Остальные изменения сохранены в черновике.',Boolean(result.cleanupWarning));
@@ -123,7 +124,7 @@ async function act(action) { if (pending) return; const item=current(); if(actio
    const missing=['works','series','exhibitions'].flatMap(key=>state.draft[key].filter(v=>!v.archived && (!Object.values(v.title).some(s=>s.trim()) || (key==='exhibitions' && !v.startDate))).map(v=>({key,id:v.id})));
    if(missing.length){modalWorkId=null;modalExhibitionId=null;modalSeriesId=null;tab=missing[0].key;selected=missing[0].id;archive=Boolean(current()?.archived);modalWorkId=tab==='works'?selected:null;render();notify('Для публикации заполните название каждой записи и дату начала выставки. Черновик можно сохранить без этих полей.',true);return;}
   }
-  pending=true;busyControls(true);const epoch=generation;notify(action==='save'?'Сохраняем черновик…':'Публикуем текущие изменения…');
+  pending=true;busyControls(true);const epoch=generation;notify(action==='save'?'Сохраняем черновик…':'Публикуем текущие изменения…',false,true);
   try {
    const result=await request(action==='save'?'/api/studio/content':'/api/studio/publish',{method:action==='save'?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:state.version,draft:state.draft})});
    if(epoch!==generation)return;state=result;dirty=false;modalWorkId=null;modalExhibitionId=null;modalSeriesId=null;render();notify(action==='save'?'Черновик сохранён. Можно продолжить позже.':'Каталог опубликован. Изменения доступны на основном сайте.');

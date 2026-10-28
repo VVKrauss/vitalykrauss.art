@@ -87,7 +87,7 @@ export async function createStudio(config) {
 
   // Explicit files only: never expose admin/, the repository, secrets or data as a static root.
   app.get('/', (req, res) => res.sendFile(join(adminRoot, 'public/index.html')));
-  for (const file of ['app.js', 'styles.css', 'content.js', 'content.css', 'logo.png']) {
+  for (const file of ['app.js', 'styles.css', 'content.js', 'content.css', 'toast.js', 'logo.png']) {
     app.get(`/assets/${file}`, (req, res) => res.sendFile(join(adminRoot, 'public', file)));
   }
   app.get('/assets/auth-client.js', (req, res) => res.sendFile(join(adminRoot, 'dist/auth-client.js')));
