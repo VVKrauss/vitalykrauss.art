@@ -267,3 +267,25 @@ test('series archive has separate edit routes and does not publish unrelated dra
  const s=await fixture(t,true);let state=await (await s.req('/api/studio/content')).json();const id=state.draft.series[0].id;const workTitle=s.catalogue.published().works[0].title.ru;state.draft.works[0].title.ru='Private series edit';
  const response=await s.req('/api/studio/entry-archive',{method:'POST',body:{version:state.version,draft:state.draft,kind:'series',id,archived:true}});assert.equal(response.status,200);state=await response.json();assert.equal(s.catalogue.published().series.length,1);assert.equal(s.catalogue.published().works[0].title.ru,workTitle);assert.equal(state.draft.works[0].title.ru,'Private series edit');assert.equal((await s.req(`/series/${id}/edit`)).status,200);
 });
+
+test('uploaded originals expose DPI and calculated centimetres with a 300 DPI fallback',async t=>{
+ const s=await fixture(t);const pixels={create:{width:2400,height:1200,channels:3,background:'#659080'}};
+ const explicit=await(await s.upload(await sharp(pixels).withMetadata({density:240}).png().toBuffer(),'Blue_green-01.png')).json();
+ assert.equal(explicit.dpi,240);assert.equal(explicit.dpiSource,'metadata');assert.ok(Math.abs(explicit.printWidthCm-25.4)<.01);assert.ok(Math.abs(explicit.printHeightCm-12.7)<.01);
+ const fallback=await(await s.upload(await sharp(pixels).png().toBuffer(),'Без_расширения-01.png')).json();assert.equal(fallback.dpi,300);assert.equal(fallback.dpiSource,'default');assert.ok(Math.abs(fallback.printWidthCm-20.32)<.01);assert.equal(fallback.filename,'Без_расширения-01.png');
+ const preview=await sharp(Buffer.from(await(await s.req(explicit.previewUrl)).arrayBuffer())).metadata();assert.equal(preview.density,undefined);
+});
+
+test('DPI migration reads existing originals without changing existing media records',async t=>{
+ const {DatabaseSync}=await import('node:sqlite');const {mkdir,writeFile}=await import('node:fs/promises');const {createMediaStore}=await import('../src/media.mjs');
+ const dir=await mkdtemp(join(tmpdir(),'vk-legacy-dpi-'));const db=new DatabaseSync(':memory:');t.after(async()=>{db.close();await rm(dir,{recursive:true,force:true});});
+ db.exec('CREATE TABLE studio_media (id TEXT PRIMARY KEY,filename TEXT NOT NULL,width INTEGER NOT NULL,height INTEGER NOT NULL,web_width INTEGER NOT NULL,web_height INTEGER NOT NULL,format TEXT NOT NULL,original_available INTEGER NOT NULL,created_at TEXT NOT NULL)');
+ await mkdir(join(dir,'media','originals'),{recursive:true});await writeFile(join(dir,'media','originals','legacy.png'),await sharp({create:{width:2400,height:1200,channels:3,background:'#999999'}}).withMetadata({density:180}).png().toBuffer());
+ db.prepare('INSERT INTO studio_media VALUES (?,?,?,?,?,?,?,?,?)').run('legacy','Original.png',2400,1200,1400,700,'png',1,'2026-01-01T00:00:00.000Z');
+ const media=await createMediaStore(db,dir);assert.equal(media.record('legacy').dpi,180);assert.equal(media.record('legacy').filename,'Original.png');assert.equal(media.describe(media.record('legacy')).width,2400);assert.equal(media.list().length,1);
+});
+
+test('print export uses selected work DPI for smaller print variants',async t=>{
+ const s=await fixture(t);const media=await(await s.upload(await image())).json();let state=await(await s.req('/api/studio/content')).json();const work=artwork(media);work.printDpi=150;work.sizes.push({id:'small-dpi',widthCm:10,heightCm:5,price:20});state.draft.works.push(work);const saved=await s.save(state.version,state.draft);assert.equal(saved.status,200);
+ const response=await s.req('/api/studio/works/work-new/print/small-dpi');assert.equal(response.status,200);const info=await sharp(Buffer.from(await response.arrayBuffer())).metadata();assert.equal(info.width,Math.round(10/2.54*150));assert.equal(info.density,150);
+});

@@ -103,7 +103,7 @@ export async function createCatalogue(db, dataDirectory, config) {
     const work = state().draft.works.find(item => item.id === workId);
     const size = work?.sizes.find(item => item.id === sizeId);
     if (!work || !size) throw new ContentError('Работа или размер не найдены.', 404);
-    return media.print(work.mediaId, size);
+    return media.print(work.mediaId, size, work.printDpi || 300);
   }
   return { state, save, publish, archiveEntry, archiveExhibition, deleteArchived, published, publicMedia, media, print };
 }

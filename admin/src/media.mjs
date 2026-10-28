@@ -18,10 +18,18 @@ export async function createMediaStore(db, dataDirectory) {
     web_width INTEGER NOT NULL, web_height INTEGER NOT NULL, format TEXT NOT NULL,
     original_available INTEGER NOT NULL, created_at TEXT NOT NULL
   )`);
+  const columns=new Set(db.prepare('PRAGMA table_info(studio_media)').all().map(column=>column.name));
+  if(!columns.has('dpi'))db.exec('ALTER TABLE studio_media ADD COLUMN dpi REAL');
+  if(!columns.has('dpi_source'))db.exec('ALTER TABLE studio_media ADD COLUMN dpi_source TEXT');
+  const density=value=>Number.isFinite(value) && value>=1 && value<=2400 ? value : 300;
+  for(const image of db.prepare('SELECT * FROM studio_media WHERE dpi IS NULL').all()){
+    let value;try{if(image.original_available)value=(await sharp(join(root,'originals',`${image.id}.${image.format}`),imageOptions).metadata()).density;}catch{}
+    db.prepare('UPDATE studio_media SET dpi = ?, dpi_source = ? WHERE id = ?').run(density(value),Number.isFinite(value) && value>=1 && value<=2400?'metadata':'default',image.id);
+  }
   function record(id) { return db.prepare('SELECT * FROM studio_media WHERE id = ?').get(id); }
   function list() { return db.prepare('SELECT * FROM studio_media ORDER BY created_at, id').all(); }
   function describe(row) {
-    return { id: row.id, filename: row.filename, width: row.width, height: row.height, originalAvailable: Boolean(row.original_available),
+    return { id: row.id, filename: row.filename, width: row.width, height: row.height, dpi:row.dpi || 300, dpiSource:row.dpi_source || 'default',printWidthCm:row.width/(row.dpi || 300)*2.54,printHeightCm:row.height/(row.dpi || 300)*2.54, originalAvailable: Boolean(row.original_available),
       previewUrl: `/api/studio/media/${row.id}/web.webp`, thumbnailUrl: `/api/studio/media/${row.id}/thumb.webp` };
   }
   function path(id, variant) {
@@ -49,7 +57,7 @@ export async function createMediaStore(db, dataDirectory) {
       const result = await sharp(source, imageOptions).autoOrient().resize({ width: 1400, height: 1400, fit: 'inside', withoutEnlargement: true }).webp({ quality: 72, effort: 4 }).toFile(webPath);
       const thumbPath = join(root, 'thumb', `${id}.webp`); written.push(thumbPath);
       await sharp(source, imageOptions).autoOrient().resize({ width: 280, height: 280, fit: 'inside', withoutEnlargement: true }).webp({ quality: 70 }).toFile(thumbPath);
-      db.prepare('INSERT INTO studio_media VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(id, basename(filename).replace(/[\x00-\x1f]/g, '').slice(0, 240), width, height, result.width, result.height, metadata.format, originalAvailable ? 1 : 0, new Date().toISOString());
+      db.prepare('INSERT INTO studio_media (id,filename,width,height,web_width,web_height,format,original_available,created_at,dpi,dpi_source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(id, basename(filename).replace(/[\x00-\x1f]/g, '').slice(0, 240), width, height, result.width, result.height, metadata.format, originalAvailable ? 1 : 0, new Date().toISOString(),density(metadata.density),Number.isFinite(metadata.density) && metadata.density>=1 && metadata.density<=2400?'metadata':'default');
       return describe(record(id));
     } catch (error) {
       await Promise.all(written.map(file => unlink(file).catch(() => {})));
@@ -57,9 +65,9 @@ export async function createMediaStore(db, dataDirectory) {
       throw new ContentError('Не удалось прочитать изображение. Допустимы статичные JPEG, PNG, WebP, AVIF, TIFF до 100 Мп.');
     }
   }
-  function print(id, size) {
+  function print(id, size, printDpi=300) {
     const row = record(id); const original = path(id, 'original');
-    const target = Math.max(1, Math.min(row.width, Math.round(size.widthCm / 2.54 * 300)));
+    const target = Math.max(1, Math.min(row.width, Math.round(size.widthCm / 2.54 * printDpi)));
     const density = Math.max(1, Math.round(target / (size.widthCm / 2.54)));
     return sharp(original, imageOptions).autoOrient().resize({ width: target, withoutEnlargement: true }).flatten({ background: '#ffffff' }).withMetadata({ density }).jpeg({ quality: 95, chromaSubsampling: '4:4:4' });
   }

@@ -48,6 +48,8 @@ export function normalizeCatalogue(input, mediaRecords, { draft = false } = {}) 
     const seriesId = item.seriesId || null;
     if (seriesId && !seriesIds.has(seriesId)) fail('Выбранная серия не найдена.');
     const ratio = image.width / image.height;
+    const printDpi=item.printDpi ?? 300;
+    if(typeof printDpi!=='number' || !Number.isFinite(printDpi) || printDpi<1 || printDpi>2400)fail('DPI должен быть числом от 1 до 2400.');
     const maxWidthCm = item.maxWidthCm == null || item.maxWidthCm === '' ? null : positive(item.maxWidthCm);
     const maxHeightCm = maxWidthCm ? rounded(maxWidthCm / ratio) : null;
     const sizes = array(item.sizes ?? [], 50).map(size => {
@@ -72,7 +74,7 @@ export function normalizeCatalogue(input, mediaRecords, { draft = false } = {}) 
     return {
       id: identifier(item.id), title: translated(item.title, !draft && !item.archived), description: translated(item.description),
       year: string(item.year ?? '', 20), seriesId, mediaId: image.id,
-      maxWidthCm, maxHeightCm, sizes, archived: archived(item.archived),
+      maxWidthCm, maxHeightCm, printDpi, sizes, archived: archived(item.archived),
     };
   });
   unique(works);

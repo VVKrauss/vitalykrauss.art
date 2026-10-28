@@ -39,9 +39,14 @@ export function mountPrivateContent(app, catalogue) {
     upload.single('file')(req, res, async error => {
       if (error) { release(); return next(new ContentError(error.code === 'LIMIT_FILE_SIZE' ? 'Максимальный размер файла — 100 МБ.' : 'Загрузите один файл изображения.')); }
       if (!req.file) { release(); return next(new ContentError('Выберите файл изображения.')); }
-      try { res.status(201).json(await catalogue.media.ingest(req.file.path, { filename: req.file.originalname })); }
-      catch (error) { next(error); }
+      let result, failure;
+      let filename=req.file.originalname;
+      if([...filename].every(char=>char.charCodeAt(0)<=255)){try{filename=new TextDecoder('utf-8',{fatal:true}).decode(Buffer.from(filename,'latin1'));}catch{}}
+      try { result=await catalogue.media.ingest(req.file.path, { filename }); }
+      catch (error) { failure=error; }
       finally { await unlink(req.file.path).catch(() => {}); release(); }
+      if(failure)return next(failure);
+      res.status(201).json(result);
     });
   });
   app.get('/api/studio/media/:id/:variant', (req, res) => {
