@@ -334,3 +334,5 @@ window.exhibitionDate = function(value) {
 window.exhibitionLink = function(value) {
   try {const url=new URL(value);return ['https:','http:'].includes(url.protocol) && !url.username && !url.password ? url.href : '';}catch{return '';}
 };
+
+window.arrowUpRight = '<svg class="arrow-up-right" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';

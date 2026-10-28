@@ -252,3 +252,13 @@ test('exhibition photos and optional safe links persist, publish privately proce
  assert.equal((await s.req(`/media/${photo.id}/web.webp`,{anonymous:true})).status,404);
  state=await (await s.req('/api/studio/delete',{method:'POST',body:{version:state.version,draft:state.draft,kind:'exhibitions',id:'photos-event'}})).json();assert.equal(state.media.length,0);
 });
+
+test('exhibition archive action persists only target visibility and keeps other edits private',async t=>{
+ const s=await fixture(t,true);let state=await (await s.req('/api/studio/content')).json();const id=state.draft.exhibitions[0].id;
+ const original=s.catalogue.published().works[0].title.ru;state.draft.works[0].title.ru='Private edit';
+ const response=await s.req('/api/studio/exhibition-archive',{method:'POST',body:{version:state.version,draft:state.draft,id,archived:true}});assert.equal(response.status,200);state=await response.json();
+ assert.equal(state.draft.exhibitions[0].archived,true);assert.equal(s.catalogue.published().exhibitions.length,2);assert.equal(s.catalogue.published().works[0].title.ru,original);assert.equal(state.draft.works[0].title.ru,'Private edit');
+ assert.equal((await s.req('/api/studio/exhibition-archive',{method:'POST',body:{version:state.version-1,draft:state.draft,id,archived:false}})).status,409);
+ const restored=await s.req('/api/studio/exhibition-archive',{method:'POST',body:{version:state.version,draft:state.draft,id,archived:false}});assert.equal(restored.status,200);assert.equal(s.catalogue.published().exhibitions.length,3);
+ assert.equal((await s.req(`/exhibitions/${id}/edit`)).status,200);
+});

@@ -368,7 +368,7 @@
       const href='exhibition.html?id='+encodeURIComponent(item.id);
       const url=exhibitionLink(item.url);
       return '<article class="exhibition '+(cover?'with-cover':'')+'">'+(cover?'<a class="exhibition-cover" href="'+href+'" aria-label="'+escapeHtml(item.title[lang])+'"><img src="'+escapeHtml(cover)+'" alt="'+escapeHtml(found?found.work.title[lang]:item.title[lang])+'" loading="lazy"></a>':'')
-        +'<p class="exhibition-date">'+escapeHtml(exhibitionDate(item.startDate)+(item.endDate && item.endDate!==item.startDate ? ' — '+exhibitionDate(item.endDate) : ''))+'</p><div><h3><a href="'+href+'">'+escapeHtml(item.title[lang])+'</a></h3><p>'+escapeHtml(place(item))+'</p><p class="exhibition-summary">'+escapeHtml(item.description[lang])+'</p><div class="exhibition-links"><a class="text-link" href="'+href+'">'+labels.more+' ↗</a>'+(url?'<a class="text-link" href="'+escapeHtml(url)+'" target="_blank" rel="noopener noreferrer">'+labels.link+' ↗</a>':'')+'</div></div></article>';
+        +'<p class="exhibition-date">'+escapeHtml(exhibitionDate(item.startDate)+(item.endDate && item.endDate!==item.startDate ? ' — '+exhibitionDate(item.endDate) : ''))+'</p><div><h3><a href="'+href+'">'+escapeHtml(item.title[lang])+'</a></h3><p>'+escapeHtml(place(item))+'</p><p class="exhibition-summary">'+escapeHtml(item.description[lang])+'</p><div class="exhibition-links"><a class="text-link" href="'+href+'">'+labels.more+' '+arrowUpRight+'</a>'+(url?'<a class="text-link" href="'+escapeHtml(url)+'" target="_blank" rel="noopener noreferrer">'+labels.link+' '+arrowUpRight+'</a>':'')+'</div></div></article>';
     }).join('');
   }
 

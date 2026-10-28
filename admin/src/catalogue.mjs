@@ -43,6 +43,16 @@ export async function createCatalogue(db, dataDirectory, config) {
     db.prepare('UPDATE studio_catalogue SET draft_json = ?, published_json = ?, published_at = ?, version = version + 1 WHERE id = 1 AND version = ?').run(JSON.stringify(draft), JSON.stringify(draft), new Date().toISOString(), version);
     return state();
   }
+  function archiveExhibition(version,submittedDraft,id,archived) {
+    if(!Number.isSafeInteger(version) || typeof id!=='string' || typeof archived!=='boolean')throw new ContentError('Некорректные данные выставки.');
+    const record=row();if(record.version!==version)throw new ContentError('Каталог изменён в другой вкладке. Повторите действие с актуальной версией.',409);
+    const draft=normalizeCatalogue(submittedDraft ?? JSON.parse(record.draft_json),media.list(),{draft:true});
+    const item=draft.exhibitions.find(item=>item.id===id);if(!item)throw new ContentError('Выставка не найдена.',404);item.archived=archived;
+    const published=record.published_json ? JSON.parse(record.published_json) : null;
+    const visible=published?.exhibitions.find(item=>item.id===id);if(visible)visible.archived=archived;
+    db.prepare('UPDATE studio_catalogue SET draft_json = ?, published_json = ?, published_at = ?, version = version + 1 WHERE id = 1 AND version = ?').run(JSON.stringify(draft),published?JSON.stringify(published):null,published?new Date().toISOString():null,version);
+    return state();
+  }
   function deleteArchived(version, submittedDraft, kind, id) {
     if (!['works','series','exhibitions'].includes(kind) || typeof id !== 'string') throw new ContentError('Некорректная запись для удаления.');
     if (!Number.isSafeInteger(version) || version < 1) throw new ContentError('Некорректная версия каталога.');
@@ -93,5 +103,5 @@ export async function createCatalogue(db, dataDirectory, config) {
     if (!work || !size) throw new ContentError('Работа или размер не найдены.', 404);
     return media.print(work.mediaId, size);
   }
-  return { state, save, publish, deleteArchived, published, publicMedia, media, print };
+  return { state, save, publish, archiveExhibition, deleteArchived, published, publicMedia, media, print };
 }
