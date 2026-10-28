@@ -13,6 +13,7 @@
   const slideAt = Object.create(null);
   const request = [];
   let lang = readPreference("vk-lang") || "en";
+  let units = readPreference("vk-units") === "in" ? "in" : "cm";
   let shopAt = 0;
   let shopSize = "standard";
   let touchStart = null;
@@ -56,21 +57,39 @@
 
   Object.assign(SITE, normalizeCatalogue(SITE, true));
   render();
-  fetch("https://studio.vitalykrauss.art/api/catalogue", {credentials:"omit",cache:"no-store",signal:AbortSignal.timeout(8000)})
-    .then(r => { if (!r.ok) throw new Error("Unavailable"); return r.json(); })
-    .then(data => {
-      if (!data.publishedAt || !Array.isArray(data.works) || !Array.isArray(data.series) || !Array.isArray(data.exhibitions)) return;
-      Object.assign(SITE, normalizeCatalogue(data, false));
+  let cataloguePending = false, catalogueRevision = '';
+  async function refreshCatalogue() {
+    if (cataloguePending) return;
+    cataloguePending = true;
+    try {
+      const response = await fetch('https://studio.vitalykrauss.art/api/catalogue', {credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(20000)});
+      if (!response.ok) throw new Error('Catalogue unavailable');
+      const data = await response.json();
+      if (!data.publishedAt || !Array.isArray(data.works) || !Array.isArray(data.series) || !Array.isArray(data.exhibitions)) throw new Error('Invalid catalogue');
+      const revision = JSON.stringify(data);
+      if (catalogueRevision === revision) return;
+      const normalized = normalizeCatalogue(data, false);
+      Object.assign(SITE, normalized); catalogueRevision = revision;
       SITE.series.forEach(s => openSeries.add(s.id));
       for (let i=request.length-1;i>=0;i--) {
         const found=findWork(request[i].workId);
         if (!found || !found.work.offers.some(o => o.id===request[i].variantId)) request.splice(i,1);
       }
       if (openWorkId && !findWork(openWorkId)) viewer.close();
-      shopAt=0; shopSize=""; render();
-    }).catch(() => {});
+      shopAt=0; shopSize=''; render();
+    } catch (error) { console.warn('Catalogue refresh failed; will retry.',error.message); }
+    finally { cataloguePending=false; }
+  }
+  refreshCatalogue();
+  window.addEventListener('focus', refreshCatalogue);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshCatalogue(); });
+  setInterval(() => { if (!document.hidden) refreshCatalogue(); }, 30000);
 
   function onClick(event) {
+    const unitButton = event.target.closest('[data-unit]');
+    if (unitButton) {
+      units=unitButton.dataset.unit; writePreference('vk-units',units); render(); return;
+    }
     if (event.target.closest("#theme-toggle")) {
       const style = document.createElement("style");
       style.textContent = "*,*::before,*::after{transition:none !important}";
@@ -225,6 +244,8 @@
       heroImage.closest("figure").querySelector("figcaption").innerHTML="<span>"+escapeHtml(heroWork.series.standalone ? "" : seriesTitle(heroWork.series))+"</span><span>"+escapeHtml(heroWork.work.title[lang]+" · "+heroWork.work.year)+"</span>";
       lede.textContent=heroWork.work.description[lang] || (heroWork.series.standalone ? "" : heroWork.series.statement[lang][0]);
     } else lede.textContent="";
+    document.querySelectorAll('[data-unit]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.unit===units)));
+    document.querySelector('.units').setAttribute('aria-label', {ru:'Единицы измерения',en:'Measurement units',es:'Unidades de medida'}[lang]);
     updateTheme();
     renderSeries();
     renderExhibitions();
@@ -539,7 +560,11 @@
   }
 
   function sizeText(size) {
-    return size.replace(/cm$/, t("unit.cm"));
+    const values = size.match(/[\d.]+/g);
+    if (!values || values.length < 2) return size;
+    const divisor = units === 'in' ? 2.54 : 1;
+    const label = units === 'in' ? (lang === 'ru' ? 'дюйм' : 'in') : t('unit.cm');
+    return Math.round(Number(values[0])/divisor)+' × '+Math.round(Number(values[1])/divisor)+' '+label;
   }
 
   function money(amount) {
@@ -547,6 +572,7 @@
     return new Intl.NumberFormat(locale, {
       style: "currency",
       currency: SITE.currency,
+      minimumFractionDigits: 0,
       maximumFractionDigits: 2
     }).format(amount);
   }

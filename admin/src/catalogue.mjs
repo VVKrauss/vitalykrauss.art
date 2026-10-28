@@ -30,17 +30,17 @@ export async function createCatalogue(db, dataDirectory, config) {
   }
   function save(version, draft) {
     if (!Number.isSafeInteger(version) || version < 1) throw new ContentError('Некорректная версия каталога.');
-    const normalized = normalizeCatalogue(draft, media.list());
+    const normalized = normalizeCatalogue(draft, media.list(), { draft: true });
     const result = db.prepare('UPDATE studio_catalogue SET draft_json = ?, version = version + 1 WHERE id = 1 AND version = ?').run(JSON.stringify(normalized), version);
     if (!result.changes) throw new ContentError('Каталог уже изменён в другой вкладке. Перезагрузите данные перед сохранением.', 409);
     return state();
   }
-  function publish(version) {
+  function publish(version, submittedDraft) {
     if (!Number.isSafeInteger(version) || version < 1) throw new ContentError('Некорректная версия каталога.');
     const record = row();
-    if (record.version !== version) throw new ContentError('Сначала сохраните актуальные изменения.', 409);
-    const draft = normalizeCatalogue(JSON.parse(record.draft_json), media.list());
-    db.prepare('UPDATE studio_catalogue SET published_json = ?, published_at = ?, version = version + 1 WHERE id = 1 AND version = ?').run(JSON.stringify(draft), new Date().toISOString(), version);
+    if (record.version !== version) throw new ContentError('Каталог изменён в другой вкладке. Ваши правки не перезаписаны; откройте актуальную версию каталога.', 409);
+    const draft = normalizeCatalogue(submittedDraft ?? JSON.parse(record.draft_json), media.list());
+    db.prepare('UPDATE studio_catalogue SET draft_json = ?, published_json = ?, published_at = ?, version = version + 1 WHERE id = 1 AND version = ?').run(JSON.stringify(draft), JSON.stringify(draft), new Date().toISOString(), version);
     return state();
   }
   function published() {

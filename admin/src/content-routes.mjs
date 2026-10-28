@@ -20,7 +20,7 @@ export function mountPrivateContent(app, catalogue) {
   app.use('/api/studio', express.json({ limit: '2mb' }));
   app.get('/api/studio/content', (req, res) => res.json(catalogue.state()));
   app.put('/api/studio/content', (req, res) => res.json(catalogue.save(req.body?.version, req.body?.draft)));
-  app.post('/api/studio/publish', (req, res) => res.json(catalogue.publish(req.body?.version)));
+  app.post('/api/studio/publish', (req, res) => res.json(catalogue.publish(req.body?.version, req.body?.draft)));
   const upload = multer({ storage: multer.diskStorage({ destination: catalogue.media.incomingDirectory, filename: (req, file, cb) => cb(null, randomUUID()) }), limits: { files: 1, fileSize: 100 * 1024 * 1024, fields: 0 } });
   let processing = false;
   app.post('/api/studio/media', async (req, res, next) => {

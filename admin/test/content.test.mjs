@@ -100,7 +100,6 @@ test('required names, dates, references, finite prices, max sizes and image prop
   const s = await fixture(t); const media = await (await s.upload(await image())).json();
   const state = await (await s.req('/api/studio/content')).json(); state.draft.works.push(artwork(media));
   for (const mutate of [
-    d => { d.works[0].title = text(''); },
     d => { d.works[0].sizes[0].heightCm = 40; },
     d => { d.works[0].sizes[0].widthCm = 80; d.works[0].sizes[0].heightCm = 40; },
     d => { d.works[0].sizes[0].price = -1; },
@@ -173,4 +172,30 @@ test('maximum size is first and included in the same size-count limit', async t 
   assert.equal(saved.draft.works[0].sizes[0].widthCm, 60); assert.equal(saved.draft.works[0].sizes[0].price, null);
   const draft = structuredClone(saved.draft); draft.works[0].sizes = Array.from({ length: 50 }, (_, i) => ({ id: 'size-' + i, widthCm: i + 1, heightCm: (i + 1) / 2, price: null }));
   assert.equal((await s.save(saved.version, draft)).status, 400);
+});
+
+test('publish atomically saves current edits without a preliminary draft save', async t => {
+  const s = await fixture(t); const media = await (await s.upload(await image())).json();
+  const initial = await (await s.req('/api/studio/content')).json();
+  initial.draft.works.push(artwork(media));
+  const response = await s.req('/api/studio/publish', {method:'POST',body:{version:initial.version,draft:initial.draft}});
+  assert.equal(response.status,200); const saved=await response.json();
+  assert.equal(saved.draft.works.length,1);
+  assert.equal((await (await s.req('/api/catalogue',{anonymous:true})).json()).works.length,1);
+  const stale = await s.req('/api/studio/publish',{method:'POST',body:{version:initial.version,draft:{...initial.draft,works:[]}}});
+  assert.equal(stale.status,409);
+  assert.equal((await (await s.req('/api/catalogue',{anonymous:true})).json()).works.length,1);
+});
+
+test('unfinished draft saves and reloads, while invalid publication preserves the last public snapshot', async t => {
+  const s = await fixture(t); const media = await (await s.upload(await image())).json();
+  let state = await (await s.req('/api/studio/content')).json(); state.draft.works.push(artwork(media));
+  state=await (await s.req('/api/studio/publish',{method:'POST',body:{version:state.version,draft:state.draft}})).json();
+  state.draft.works[0].title=text('');
+  state.draft.exhibitions.push({id:'unfinished',title:text(''),description:text(''),startDate:'',endDate:'',venue:text(''),city:text(''),workIds:[],archived:false});
+  const response=await s.save(state.version,state.draft); assert.equal(response.status,200); state=await response.json();
+  assert.equal(state.draft.works[0].title.ru,'');
+  assert.equal((await (await s.req('/api/studio/content')).json()).draft.exhibitions.length,1);
+  assert.equal((await s.req('/api/studio/publish',{method:'POST',body:{version:state.version,draft:state.draft}})).status,400);
+  assert.equal((await (await s.req('/api/catalogue',{anonymous:true})).json()).works[0].title.ru,'Новая работа');
 });

@@ -27,11 +27,11 @@ function date(value, required = false) {
   return value;
 }
 
-export function normalizeCatalogue(input, mediaRecords) {
+export function normalizeCatalogue(input, mediaRecords, { draft = false } = {}) {
   if (!input || typeof input !== 'object') fail('Каталог не передан.');
   const media = new Map(mediaRecords.map(item => [item.id, item]));
   const series = array(input.series).map(item => ({
-    id: identifier(item.id), title: translated(item.title, true), description: translated(item.description),
+    id: identifier(item.id), title: translated(item.title, !draft && !item.archived), description: translated(item.description),
     collaborator: string(item.collaborator ?? '', 200), archived: archived(item.archived),
   }));
   unique(series);
@@ -65,7 +65,7 @@ export function normalizeCatalogue(input, mediaRecords) {
     }
     sizes.sort((a, b) => b.widthCm - a.widthCm);
     return {
-      id: identifier(item.id), title: translated(item.title, true), description: translated(item.description),
+      id: identifier(item.id), title: translated(item.title, !draft && !item.archived), description: translated(item.description),
       year: string(item.year ?? '', 20), seriesId, mediaId: image.id,
       maxWidthCm, maxHeightCm, sizes, archived: archived(item.archived),
     };
@@ -76,10 +76,10 @@ export function normalizeCatalogue(input, mediaRecords) {
     const selected = array(item.workIds, 2000).map(identifier);
     if (selected.some(id => !workIds.has(id))) fail('В выставке выбрана неизвестная работа.');
     if (new Set(selected).size !== selected.length) fail('Работа не должна повторяться в одной выставке.');
-    const startDate = date(item.startDate, true); const endDate = date(item.endDate ?? '');
+    const startDate = date(item.startDate, !draft && !item.archived); const endDate = date(item.endDate ?? '');
     if (endDate && endDate < startDate) fail('Дата окончания не может быть раньше начала.');
     return {
-      id: identifier(item.id), title: translated(item.title, true), description: translated(item.description),
+      id: identifier(item.id), title: translated(item.title, !draft && !item.archived), description: translated(item.description),
       startDate, endDate, venue: translated(item.venue), city: translated(item.city), workIds: selected, archived: archived(item.archived),
     };
   });

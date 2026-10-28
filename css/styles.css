@@ -230,3 +230,5 @@ dialog::backdrop { background: oklch(0 0 0 / .55); }
   *, *::before, *::after { transition: none !important; animation: none !important; }
   button:active:not(:disabled) { scale: 1 !important; }
 }
+.units{display:flex;align-items:center;border-right:1px solid var(--line);padding-right:.5rem}.units button{background:transparent;border:0;padding:0;min-width:30px;min-height:44px;font-size:.65rem;letter-spacing:.04em;color:var(--ink-soft)}.units button[aria-pressed=true]{color:var(--ink);text-decoration:underline;text-underline-offset:.4em}
+@media(max-width:480px){.units{padding-right:.25rem}.units button{min-width:25px}.site-header{column-gap:.3rem}.header-tools{gap:.1rem}}
