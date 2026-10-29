@@ -52,7 +52,7 @@ window.applyAuthor = function(about,lang,{title,description}={}) {
  document.querySelectorAll('[data-author-role]').forEach(node=>{node.textContent=role;node.hidden=!role;});
  document.querySelectorAll('.brand-logo').forEach(node=>node.setAttribute('aria-label',name || window.I18N.t('site.title',lang)));
  const titleNode=document.querySelector('#about-title');if(titleNode){titleNode.textContent=name;titleNode.hidden=!name;}
- const intro=document.querySelector('.about-intro');if(intro){intro.textContent=value('intro');intro.nextElementSibling.textContent=value('description');}
+ for(const field of ['intro','description'])document.querySelectorAll(`[data-author-${field}]`).forEach(node=>{node.textContent=value(field);node.hidden=!value(field);});
  const email=document.querySelector('#about-email');if(email){email.hidden=!about?.email;email.href=about?.email?'mailto:'+about.email:'';email.querySelector('span').textContent=about?.email || '';}
  const avatar=document.querySelector('#author-avatar');if(avatar){avatar.src=about?.avatar || 'images/author.webp';avatar.alt=name;}
 };

@@ -26,3 +26,12 @@ test('exhibition metadata joins dates and translated place including optional co
  assert.equal(context.window.exhibitionMeta({startDate:'2026',city:{en:'London'}},'en'),'2026 · London');
  assert.equal(context.window.exhibitionMeta({startDate:'',country:{en:'United Kingdom'}},'en'),'United Kingdom');
 });
+
+test('published About intro updates both the hero and About block, including clearing it',async()=>{
+ const hero={textContent:'Old series paragraph'},intro={textContent:''},biography={textContent:''},meta={content:''};
+ const document={title:'',querySelector:selector=>selector==='meta[name="description"]'?meta:null,querySelectorAll:selector=>selector==='[data-author-intro]'?[hero,intro]:selector==='[data-author-description]'?[biography]:[]};
+ const context={window:{I18N:{t:()=>''}},document};vm.createContext(context);vm.runInContext(await readFile(new URL('../js/content.js',import.meta.url),'utf8'),context);
+ context.window.applyAuthor({name:{en:'Artist'},role:{en:'Digital artist'},intro:{en:'Published author introduction'},description:{en:'Full biography'}},'en');
+ assert.equal(hero.textContent,'Published author introduction');assert.equal(intro.textContent,hero.textContent);assert.equal(biography.textContent,'Full biography');
+ context.window.applyAuthor({intro:{en:''},description:{en:''}},'en');assert.equal(hero.textContent,'');assert.equal(hero.hidden,true);assert.equal(intro.hidden,true);assert.equal(biography.hidden,true);
+});

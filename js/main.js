@@ -177,13 +177,11 @@
     });
     const heroWork = findWork(SITE.heroWorkId);
     heroImage.closest("figure").hidden = !heroWork;
-    const lede=document.querySelector(".hero-copy .lede");
     if (heroWork) {
       heroImage.src=heroWork.work.image; heroImage.width=heroWork.work.width; heroImage.height=heroWork.work.height;
       heroImage.alt=altText(heroWork.work,heroWork.series);
       heroImage.closest("figure").querySelector("figcaption").innerHTML="<span>"+escapeHtml(heroWork.series.standalone ? "" : seriesTitle(heroWork.series))+"</span><span>"+escapeHtml([heroWork.work.title[lang],heroWork.work.year].filter(Boolean).join(" · "))+"</span>";
-      lede.textContent=heroWork.work.description[lang] || (heroWork.series.standalone ? "" : heroWork.series.statement[lang][0]);
-    } else lede.textContent="";
+    }
     document.querySelectorAll('[data-unit]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.unit===units)));
     window.VKCart.update(SITE.works,lang,units,Boolean(catalogueRevision));
     updateTheme();
