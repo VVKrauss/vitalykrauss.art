@@ -340,3 +340,13 @@ test('request errors expose stable localization codes without requiring a server
  assert.equal((await (await send()).json()).code,'email');body.email='buyer@example.test';body.items[0].quotedPrice=variant.price+1;assert.equal((await (await send()).json()).code,'priceChanged');
  const forbidden=await s.req('/api/requests',{method:'POST',body,anonymous:true,origin:'https://evil.test'});assert.equal((await forbidden.json()).code,'forbidden');
 });
+
+test('exhibition country saves and publishes translations with legacy records supported',async t=>{
+ const s=await fixture(t,true);let state=s.catalogue.state();assert.equal(state.draft.exhibitions[0].country.en,'');state.draft.exhibitions[0].country={en:'Germany',ru:'Германия',es:'Alemania'};
+ const saved=await (await s.save(state.version,state.draft)).json();assert.equal(saved.draft.exhibitions[0].country.ru,'Германия');s.catalogue.publish(saved.version,saved.draft);assert.equal(s.catalogue.published().exhibitions[0].country.es,'Alemania');
+ const published=s.catalogue.published(),work=published.works.find(w=>w.sizes.some(size=>size.price)),size=work.sizes.find(size=>size.price);
+ state=s.catalogue.state();state.draft.exhibitions[0].workIds=[work.id];s.catalogue.publish(state.version,state.draft);
+ const response=await s.req('/api/requests',{method:'POST',anonymous:true,origin:'https://vitalykrauss.art',body:{clientRequestId:'77777777-7777-4777-8777-777777777777',email:'buyer@example.test',items:[{workId:work.id,variantId:size.id,qty:1}]}});assert.equal(response.status,201);
+ const inbox=await (await s.req('/api/studio/requests')).json();assert.equal(inbox.requests[0].items[0].exhibitions[0].country.en,'Germany');
+
+});

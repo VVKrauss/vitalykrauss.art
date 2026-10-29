@@ -29,7 +29,7 @@ export function mountRequests(app,db,catalogue,config) {
    const quoted=body.items.find(i=>i.workId===item.workId && i.variantId===item.variantId)?.quotedPrice;
    if(quoted!==undefined && quoted!==size.price)throw new ContentError('The price has changed. Refresh the catalogue and review your cart.',409,'priceChanged');
    const series=published.series.find(s=>s.id===work.seriesId);
-   const exhibitions=published.exhibitions.filter(e=>e.workIds.includes(work.id)).map(e=>({title:e.title,venue:e.venue,city:e.city}));
+   const exhibitions=published.exhibitions.filter(e=>e.workIds.includes(work.id)).map(e=>({title:e.title,venue:e.venue,city:e.city,country:e.country}));
    return {...item,title:work.title,thumbnail:work.thumbnail,series:series?.title || null,exhibitions,widthCm:size.widthCm,heightCm:size.heightCm,price:size.price};
   });
   const now=Date.now(),bucket=hash(config.secret+'|'+req.ip),globalBucket='global';

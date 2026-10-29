@@ -254,3 +254,9 @@ dialog::backdrop { background: oklch(0 0 0 / .55); }
 @media(max-width:480px){.site-header{padding-inline:16px;gap:8px}.exhibition.with-cover{grid-template-columns:88px minmax(0,1fr);gap:14px}.exhibition-media-thumb{width:88px;height:88px}.cart-items li{grid-template-columns:44px minmax(0,1fr);gap:10px}.cart-items img{width:44px;height:56px}.cart-items li>span{grid-column:2}.about-identity .author-avatar{width:144px;height:144px}.photo-viewer-tools{gap:8px}.photo-viewer-tools .slide-controls{gap:4px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}button{transition:none}}
 .catalogue-status{max-width:1632px;margin:0 auto;padding:3rem var(--gutter);color:var(--ink-soft)}.catalogue-status p{max-width:48rem}.hero #artist-name{overflow-wrap:anywhere;white-space:pre-line}
+
+/* Auto margins centre a short thumbnail strip and become zero when it needs scrolling. */
+.slide-thumbnails>.slide-thumb:first-child{margin-inline-start:auto}.slide-thumbnails>.slide-thumb:last-child{margin-inline-end:auto}
+.exhibition{grid-template-columns:minmax(0,1fr)}.exhibition.with-cover{grid-template-columns:minmax(160px,.8fr) minmax(0,2fr)}.exhibition-meta{color:var(--ink-soft);font-size:.8rem;line-height:1.7}
+@media(max-width:1050px){.exhibition.with-cover{grid-template-columns:120px minmax(0,1fr)}.exhibition-cover{grid-row:auto}.exhibition.with-cover>div{grid-column:2}}
+@media(max-width:480px){.exhibition.with-cover{grid-template-columns:88px minmax(0,1fr)}}

@@ -90,7 +90,7 @@ export function normalizeCatalogue(input, mediaRecords, { draft = false } = {}) 
     if (endDate && endDate < startDate) fail('Дата окончания не может быть раньше начала.');
     return {
       id: identifier(item.id), title: translated(item.title, !draft && !item.archived), description: translated(item.description),
-      startDate, endDate, venue: translated(item.venue), city: translated(item.city), workIds: selected, mediaIds, url:exhibitionURL(item.url), archived: archived(item.archived),
+      startDate, endDate, venue: translated(item.venue), city: translated(item.city), country:translated(item.country ?? {}), workIds: selected, mediaIds, url:exhibitionURL(item.url), archived: archived(item.archived),
     };
   });
   unique(exhibitions);

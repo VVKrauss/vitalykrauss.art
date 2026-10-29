@@ -27,7 +27,8 @@ export async function createCatalogue(db, dataDirectory, config) {
   }
   function state() {
     const record = row();
-    return { version: record.version, draft: {about:defaultAbout(),...JSON.parse(record.draft_json)}, publishedAt: record.published_at, media: media.list().map(media.describe) };
+    const draft={about:defaultAbout(),...JSON.parse(record.draft_json)};draft.exhibitions=draft.exhibitions.map(item=>({country:{en:'',ru:'',es:''},...item}));
+    return { version: record.version, draft, publishedAt: record.published_at, media: media.list().map(media.describe) };
   }
   function save(version, draft) {
     if (!Number.isSafeInteger(version) || version < 1) throw new ContentError('Некорректная версия каталога.');

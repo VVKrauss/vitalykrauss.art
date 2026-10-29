@@ -18,3 +18,11 @@ test('public presentation starts without a demo catalogue and only normalizes se
  const normalized=context.window.normalizeCatalogue(source);assert.equal(normalized.about.name.ru,'New Artist');assert.equal(normalized.about.intro.en,'New intro');assert.equal(normalized.works.length,0);
 });
 
+
+test('exhibition metadata joins dates and translated place including optional country',async()=>{
+ const context={window:{},Intl};vm.createContext(context);vm.runInContext(await readFile(new URL('../js/content.js',import.meta.url),'utf8'),context);
+ const item={startDate:'2026-02-10',endDate:'2026-02-12',venue:{en:'Gallery'},city:{en:'London'},country:{en:'United Kingdom'}};
+ assert.equal(context.window.exhibitionMeta(item,'en'),'10 Feb 2026 — 12 Feb 2026 · Gallery, London, United Kingdom');
+ assert.equal(context.window.exhibitionMeta({startDate:'2026',city:{en:'London'}},'en'),'2026 · London');
+ assert.equal(context.window.exhibitionMeta({startDate:'',country:{en:'United Kingdom'}},'en'),'United Kingdom');
+});

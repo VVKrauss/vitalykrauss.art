@@ -28,7 +28,7 @@ window.normalizeCatalogue = function (source) {
   works.forEach(w => (groups.find(s => s.id === w.seriesId) || standalone).works.push(w));
   groups.forEach(group=>{const ids=source.series.find(s=>s.id===group.id)?.workIds || [];group.works.sort((a,b)=>(ids.includes(a.id)?ids.indexOf(a.id):9999)-(ids.includes(b.id)?ids.indexOf(b.id):9999));});
   if (standalone.works.length) groups.push(standalone);
-  return {about:source.about?{...source.about,name:text(source.about.name),role:text(source.about.role),intro:text(source.about.intro),description:text(source.about.description),avatar:source.about.avatar?image(source.about.avatar):null}:null,heroWorkId:source.heroWorkId,series:groups,works:works,exhibitions:source.exhibitions.filter(e => !e.archived).map((e,i) => ({...e,id:e.id || "exhibition-"+(i+1),title:text(e.title),description:text(e.description),venue:text(e.venue),city:text(e.city),startDate:e.startDate || e.year || "",endDate:e.endDate || "",workIds:e.workIds || [],media:(e.media || []).map(m=>({...m,image:image(m.image),thumbnail:image(m.thumbnail || m.image)}))}))};
+  return {about:source.about?{...source.about,name:text(source.about.name),role:text(source.about.role),intro:text(source.about.intro),description:text(source.about.description),avatar:source.about.avatar?image(source.about.avatar):null}:null,heroWorkId:source.heroWorkId,series:groups,works:works,exhibitions:source.exhibitions.filter(e => !e.archived).map((e,i) => ({...e,id:e.id || "exhibition-"+(i+1),title:text(e.title),description:text(e.description),venue:text(e.venue),city:text(e.city),country:text(e.country),startDate:e.startDate || e.year || "",endDate:e.endDate || "",workIds:e.workIds || [],media:(e.media || []).map(m=>({...m,image:image(m.image),thumbnail:image(m.thumbnail || m.image)}))}))};
 };
 
 window.exhibitionDate = function(value) {
@@ -55,4 +55,10 @@ window.applyAuthor = function(about,lang,{title,description}={}) {
  const intro=document.querySelector('.about-intro');if(intro){intro.textContent=value('intro');intro.nextElementSibling.textContent=value('description');}
  const email=document.querySelector('#about-email');if(email){email.hidden=!about?.email;email.href=about?.email?'mailto:'+about.email:'';email.querySelector('span').textContent=about?.email || '';}
  const avatar=document.querySelector('#author-avatar');if(avatar){avatar.src=about?.avatar || 'images/author.webp';avatar.alt=name;}
+};
+
+window.exhibitionPlace = function(item,lang){return [item.venue?.[lang],item.city?.[lang],item.country?.[lang]].filter(Boolean).join(', ');};
+window.exhibitionMeta = function(item,lang){
+ const dates=window.exhibitionDate(item.startDate)+(item.endDate && item.endDate!==item.startDate?' — '+window.exhibitionDate(item.endDate):'');
+ return [dates,window.exhibitionPlace(item,lang)].filter(Boolean).join(' · ');
 };
