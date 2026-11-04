@@ -2,10 +2,10 @@ import {defaultAbout} from './about.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { adminRoot } from './config.mjs';
-import { ContentError, normalizeCatalogue, publicCatalogue } from './catalogue-model.mjs';
+import { ContentError, normalizeCatalogue, publicCatalogue, defaultHero, defaultContact, defaultLayout } from './catalogue-model.mjs';
 import { createMediaStore } from './media.mjs';
 
-const empty = () => ({ heroWorkId: null, works: [], series: [], exhibitions: [] });
+const empty = () => ({ heroWorkId: null, works: [], series: [], exhibitions: [], hero: defaultHero(), contact: defaultContact(), layout: defaultLayout(), worksOrder: [] });
 
 export async function createCatalogue(db, dataDirectory, config) {
   const media = await createMediaStore(db, dataDirectory);
@@ -27,7 +27,7 @@ export async function createCatalogue(db, dataDirectory, config) {
   }
   function state() {
     const record = row();
-    const draft={about:defaultAbout(),...JSON.parse(record.draft_json)};draft.exhibitions=draft.exhibitions.map(item=>({country:{en:'',ru:'',es:''},...item}));
+    const draft={about:defaultAbout(),hero:defaultHero(),contact:defaultContact(),layout:defaultLayout(),worksOrder:[],...JSON.parse(record.draft_json)};draft.exhibitions=draft.exhibitions.map(item=>({country:{en:'',ru:'',es:''},...item}));
     return { version: record.version, draft, publishedAt: record.published_at, media: media.list().map(media.describe) };
   }
   function save(version, draft) {

@@ -1,4 +1,10 @@
 import {defaultAbout} from './about.mjs';
+import {socialIcon} from './social-icons.mjs';
+
+export const LAYOUT_IDS = ['works', 'exhibitions', 'about', 'contact', 'shop'];
+export const defaultLayout = () => LAYOUT_IDS.map(id => ({ id, enabled: true }));
+export const defaultContact = () => ({ email: '', links: [] });
+export const defaultHero = () => ({ intro: { en: '', ru: '', es: '' } });
 export class ContentError extends Error {
   constructor(message, status = 400, code) { super(message); this.status = status;if(code)this.code=code; }
 }
@@ -16,11 +22,13 @@ function translated(value, required = false) {
   if (required && !Object.values(result).some(Boolean)) fail('Укажите название хотя бы на одном языке.');
   return result;
 }
-function exhibitionURL(value) {
-  const raw=string(value ?? '',2048);if(!raw)return '';
-  try { const url=new URL(raw);if(!['https:','http:'].includes(url.protocol) || url.username || url.password)fail('Ссылка выставки должна начинаться с https:// или http://.');return url.href; }
-  catch {fail('Укажите корректную ссылку выставки с https:// или http://.');}
+function externalURL(value, { required = false } = {}) {
+  const raw=string(value ?? '',2048);
+  if(!raw){ if(required) fail('Укажите ссылку, начинающуюся с https:// или http://.'); return ''; }
+  try { const url=new URL(raw);if(!['https:','http:'].includes(url.protocol) || url.username || url.password)fail('Ссылка должна начинаться с https:// или http://.');return url.href; }
+  catch {fail('Укажите корректную ссылку, начинающуюся с https:// или http://.');}
 }
+const exhibitionURL = value => externalURL(value);
 function unique(entries) {
   const ids = entries.map(entry => entry.id);
   if (new Set(ids).size !== ids.length) fail('Идентификаторы записей не должны повторяться.');
@@ -103,12 +111,56 @@ export function normalizeCatalogue(input, mediaRecords, { draft = false } = {}) 
   const source=input.about ?? defaultAbout();
   const avatarMediaId=source.avatarMediaId || null;
   if(avatarMediaId && !media.has(identifier(avatarMediaId)))fail('Аватар не найден. Загрузите изображение.');
-  const email=string(source.email ?? '',254);
-  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))fail('Укажите корректную почту автора.');
-  const about={name:translated(source.name),role:translated(source.role),intro:translated(source.intro),description:translated(source.description),email,avatarMediaId};
+  const about={name:translated(source.name),role:translated(source.role),intro:translated(source.intro),description:translated(source.description),avatarMediaId};
   const heroWorkId = input.heroWorkId || null;
   if (heroWorkId && !works.some(item => item.id === heroWorkId && !item.archived)) fail('Заглавная работа должна быть активной. Сначала выберите другую или выключите тумблер.');
-  return { heroWorkId, works, series, exhibitions, about };
+
+  const heroSource = input.hero ?? defaultHero();
+  if (typeof heroSource !== 'object' || Array.isArray(heroSource)) fail('Некорректные данные хедера.');
+  const hero = { intro: translated(heroSource.intro) };
+
+  const contactSource = input.contact ?? defaultContact();
+  if (typeof contactSource !== 'object' || Array.isArray(contactSource)) fail('Некорректные данные контактов.');
+  const contactEmail = string(contactSource.email ?? '', 254);
+  if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) fail('Укажите корректную почту для связи.');
+  const links = array(contactSource.links ?? [], 50).map(link => {
+    const url = externalURL(link.url, { required: true });
+    return { id: identifier(link.id), label: translated(link.label, true), url, icon: socialIcon(url) };
+  });
+  unique(links);
+  const contact = { email: contactEmail, links };
+
+  const layoutSource = input.layout == null ? defaultLayout() : array(input.layout, LAYOUT_IDS.length);
+  const layout = layoutSource.map(entry => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) fail('Некорректный раздел макета.');
+    if (!LAYOUT_IDS.includes(entry.id)) fail('Неизвестный раздел макета.');
+    if (typeof entry.enabled !== 'boolean') fail('Видимость раздела макета должна быть булевой.');
+    return { id: entry.id, enabled: entry.enabled };
+  });
+  if (layout.length !== LAYOUT_IDS.length || new Set(layout.map(entry => entry.id)).size !== LAYOUT_IDS.length) {
+    fail('Список разделов макета должен содержать каждый раздел ровно один раз.');
+  }
+
+  const activeSeriesIds = new Set(series.filter(item => !item.archived).map(item => item.id));
+  const standaloneWorkIds = new Set(works.filter(item => !item.seriesId && !item.archived).map(item => item.id));
+  const isValidOrderEntry = entry => entry.type === 'series' ? activeSeriesIds.has(entry.id) : standaloneWorkIds.has(entry.id);
+  const submittedOrder = array(input.worksOrder ?? [], 4000).map(entry => {
+    if (!entry || typeof entry !== 'object' || !['series', 'work'].includes(entry.type)) fail('Некорректный элемент порядка работ.');
+    return { type: entry.type, id: identifier(entry.id) };
+  });
+  const seenOrderKeys = new Set();
+  for (const entry of submittedOrder) {
+    const key = `${entry.type}:${entry.id}`;
+    if (seenOrderKeys.has(key)) fail('Элемент порядка работ не должен повторяться.');
+    seenOrderKeys.add(key);
+  }
+  const keptOrder = submittedOrder.filter(isValidOrderEntry);
+  const keptOrderKeys = new Set(keptOrder.map(entry => `${entry.type}:${entry.id}`));
+  const missingSeries = series.filter(item => !item.archived && !keptOrderKeys.has(`series:${item.id}`)).map(item => ({ type: 'series', id: item.id }));
+  const missingWorks = works.filter(item => !item.seriesId && !item.archived && !keptOrderKeys.has(`work:${item.id}`)).map(item => ({ type: 'work', id: item.id }));
+  const worksOrder = [...keptOrder, ...missingSeries, ...missingWorks];
+
+  return { heroWorkId, works, series, exhibitions, about, hero, contact, layout, worksOrder };
 }
 
 export function publicCatalogue(draft, mediaRecords, baseURL, publishedAt) {
@@ -129,7 +181,11 @@ export function publicCatalogue(draft, mediaRecords, baseURL, publishedAt) {
   const exhibitions = draft.exhibitions.filter(item => !item.archived).map(({ archived, mediaIds, ...item }) => ({ ...item, url:item.url || '', workIds: item.workIds.filter(id => ids.has(id)), media:(mediaIds || []).map(id=>media.get(id)).filter(Boolean).map(image=>({image:`${baseURL}/media/${image.id}/web.webp`,thumbnail:`${baseURL}/media/${image.id}/thumb.webp`,width:image.web_width,height:image.web_height})) }));
   const about=draft.about ?? defaultAbout();
   const avatar=about.avatarMediaId && media.get(about.avatarMediaId);
-  const publicAbout={name:about.name,role:about.role,intro:about.intro,description:about.description,email:about.email,avatar:avatar?`${baseURL}/media/${avatar.id}/web.webp`:null};
+  const publicAbout={name:about.name,role:about.role,intro:about.intro,description:about.description,avatar:avatar?`${baseURL}/media/${avatar.id}/web.webp`:null};
   series.forEach(group=>{group.workIds=(group.workIds || works.filter(w=>w.seriesId===group.id).map(w=>w.id)).filter(id=>ids.has(id));});
-  return {about:publicAbout, heroWorkId: ids.has(draft.heroWorkId) ? draft.heroWorkId : null, works, series, exhibitions, publishedAt };
+  const hero = draft.hero ?? defaultHero();
+  const contact = draft.contact ?? defaultContact();
+  const layout = draft.layout ?? defaultLayout();
+  const worksOrder = (draft.worksOrder ?? []).filter(entry => entry.type === 'series' ? seriesIds.has(entry.id) : ids.has(entry.id));
+  return {about:publicAbout, heroWorkId: ids.has(draft.heroWorkId) ? draft.heroWorkId : null, works, series, exhibitions, hero, contact, layout, worksOrder, publishedAt };
 }

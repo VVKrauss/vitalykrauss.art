@@ -6,6 +6,8 @@ import { mkdtemp, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
+import { socialIcon } from '../src/social-icons.mjs';
+import { normalizeCatalogue } from '../src/catalogue-model.mjs';
 
 async function fixture(t, seedContent = false) {
   const { createStudio } = await import('../src/studio.mjs');
@@ -293,10 +295,11 @@ test('print export uses selected work DPI for smaller print variants',async t=>{
 test('series ordering and About draft publish preserve separate visibility', async t => {
  const s=await fixture(t,true);let data=s.catalogue.state();
  const group=data.draft.series[0];const ids=data.draft.works.filter(w=>w.seriesId===group.id).map(w=>w.id).reverse();group.workIds=ids;
- data.draft.about={name:{en:'Artist',ru:'Автор',es:''},role:{en:'Digital artist',ru:'',es:''},intro:{en:'New intro',ru:'',es:''},description:{en:'Biography',ru:'',es:''},email:'artist@example.test',avatarMediaId:null};
+ data.draft.about={name:{en:'Artist',ru:'Автор',es:''},role:{en:'Digital artist',ru:'',es:''},intro:{en:'New intro',ru:'',es:''},description:{en:'Biography',ru:'',es:''},avatarMediaId:null};
+ data.draft.contact={email:'artist@example.test',links:[]};
  let saved=await (await s.save(data.version,data.draft)).json();assert.deepEqual(saved.draft.series[0].workIds,ids);assert.notEqual(s.catalogue.published().about.name.en,'Artist');
  const response=await s.req('/api/studio/publish',{method:'POST',body:{version:saved.version,draft:saved.draft}});assert.equal(response.status,200);
- assert.deepEqual(s.catalogue.published().series[0].workIds,ids);assert.equal(s.catalogue.published().about.email,'artist@example.test');
+ assert.deepEqual(s.catalogue.published().series[0].workIds,ids);assert.equal(s.catalogue.published().contact.email,'artist@example.test');
 });
 
 test('public requests validate published variants, are idempotent and stay owner-only', async t => {
@@ -349,4 +352,48 @@ test('exhibition country saves and publishes translations with legacy records su
  const response=await s.req('/api/requests',{method:'POST',anonymous:true,origin:'https://vitalykrauss.art',body:{clientRequestId:'77777777-7777-4777-8777-777777777777',email:'buyer@example.test',items:[{workId:work.id,variantId:size.id,qty:1}]}});assert.equal(response.status,201);
  const inbox=await (await s.req('/api/studio/requests')).json();assert.equal(inbox.requests[0].items[0].exhibitions[0].country.en,'Germany');
 
+});
+
+test('socialIcon matches known social domains and falls back to link', () => {
+  assert.equal(socialIcon('https://www.instagram.com/vitaly'), 'instagram');
+  assert.equal(socialIcon('https://wa.me/123456'), 'whatsapp');
+  assert.equal(socialIcon('https://example.test/portfolio'), 'link');
+});
+
+test('normalizeCatalogue fills hero/contact/layout/worksOrder defaults when absent', () => {
+  const result = normalizeCatalogue({ heroWorkId: null, works: [], series: [], exhibitions: [] }, []);
+  assert.deepEqual(result.hero, { intro: { en: '', ru: '', es: '' } });
+  assert.deepEqual(result.contact, { email: '', links: [] });
+  assert.deepEqual(result.layout, [
+    { id: 'works', enabled: true }, { id: 'exhibitions', enabled: true }, { id: 'about', enabled: true },
+    { id: 'contact', enabled: true }, { id: 'shop', enabled: true },
+  ]);
+  assert.deepEqual(result.worksOrder, []);
+});
+
+test('normalizeCatalogue rejects a layout missing a required section id', () => {
+  assert.throws(() => normalizeCatalogue({ heroWorkId: null, works: [], series: [], exhibitions: [],
+    layout: [{ id: 'works', enabled: true }] }, []), /раздел/i);
+});
+
+test('normalizeCatalogue computes contact link icon from the URL regardless of submitted icon', () => {
+  const result = normalizeCatalogue({ heroWorkId: null, works: [], series: [], exhibitions: [],
+    contact: { email: '', links: [{ id: 'l1', label: { en: 'Instagram' }, url: 'https://instagram.com/vitaly', icon: 'whatsapp' }] } }, []);
+  assert.equal(result.contact.links[0].icon, 'instagram');
+});
+
+test('worksOrder reconciles stale and missing entries like series.workIds', () => {
+  const media = [{ id: 'm1', width: 10, height: 10 }, { id: 'm2', width: 10, height: 10 }];
+  const input = {
+    heroWorkId: null,
+    works: [
+      { id: 'w-series', title: { en: 'In series' }, description: {}, seriesId: 's1', mediaId: 'm1', maxWidthCm: 10, sizes: [{ id: 'max', widthCm: 10, heightCm: 10 }] },
+      { id: 'w-standalone', title: { en: 'Standalone' }, description: {}, seriesId: null, mediaId: 'm2', maxWidthCm: 10, sizes: [{ id: 'max', widthCm: 10, heightCm: 10 }] },
+    ],
+    series: [{ id: 's1', title: { en: 'Series' }, description: {}, workIds: ['w-series'] }],
+    exhibitions: [],
+    worksOrder: [{ type: 'work', id: 'w-gone' }],
+  };
+  const result = normalizeCatalogue(input, media);
+  assert.deepEqual(result.worksOrder, [{ type: 'series', id: 's1' }, { type: 'work', id: 'w-standalone' }]);
 });
