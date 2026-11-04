@@ -208,7 +208,7 @@
         if (!series || !series.works.length) return '';
         const cover = series.works[Math.floor(Math.random() * series.works.length)];
         return '<a class="work-card series-card" href="series.html?id=' + encodeURIComponent(series.id) + '">'
-          + '<img src="' + escapeHtml(cover.thumbnail || cover.image) + '" alt="" loading="lazy" width="' + cover.width + '" height="' + cover.height + '">'
+          + '<img src="' + escapeHtml(cover.image) + '" alt="" loading="lazy" width="' + cover.width + '" height="' + cover.height + '">'
           + '<span class="work-card-title">' + escapeHtml(seriesTitle(series)) + '</span>'
           + '<span class="work-card-meta">' + escapeHtml(tf('series.count', { n: series.works.length })) + '</span>'
           + '</a>';
@@ -216,7 +216,7 @@
       const work = SITE.standaloneWorks.find(function (item) { return item.id === entry.id; });
       if (!work) return '';
       return '<button type="button" class="work-card" data-open-work="' + escapeHtml(work.id) + '">'
-        + '<img src="' + escapeHtml(work.thumbnail || work.image) + '" alt="" loading="lazy" width="' + work.width + '" height="' + work.height + '">'
+        + '<img src="' + escapeHtml(work.image) + '" alt="" loading="lazy" width="' + work.width + '" height="' + work.height + '">'
         + '<span class="work-card-title">' + escapeHtml(work.title[lang]) + '</span>'
         + (work.year ? '<span class="work-card-meta">' + escapeHtml(work.year) + '</span>' : '')
         + '</button>';
