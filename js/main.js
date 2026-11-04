@@ -1,6 +1,3 @@
-window.orderedLayout = function (layout) {
-  return (layout || []).filter(function (entry) { return entry.enabled; }).map(function (entry) { return entry.id; });
-};
 (function () {
   const langButtons = document.querySelectorAll("[data-lang]");
   const worksRoot = document.querySelector("#works");
@@ -10,7 +7,6 @@ window.orderedLayout = function (layout) {
   const navRoot = document.querySelector("#site-navigation");
   const catalogueContent = document.querySelector("#catalogue-content");
   const SECTION_IDS = ["works", "exhibitions", "about", "contact", "shop"];
-  const NAV_LABELS = {works:"nav.works",exhibitions:"nav.exhibitions",about:"nav.about",contact:"nav.contact",shop:"nav.shop"};
   const viewer = document.querySelector("#viewer");
   const viewerBody = document.querySelector("#viewer-body");
   const heroImage = document.querySelector("#hero-image");
@@ -194,14 +190,7 @@ window.orderedLayout = function (layout) {
 
   function applyLayout() {
     const order = window.orderedLayout(SITE.layout);
-    navRoot.querySelectorAll(':scope > a').forEach(function (node) { node.remove(); });
-    const anchor = navRoot.querySelector('.mobile-menu-tools');
-    order.forEach(function (id) {
-      const link = document.createElement('a');
-      link.href = '#' + id;
-      link.textContent = t(NAV_LABELS[id]);
-      if (anchor) navRoot.insertBefore(link, anchor); else navRoot.appendChild(link);
-    });
+    window.applyNav(navRoot, SITE.layout, lang, '');
     SECTION_IDS.forEach(function (id) {
       const node = document.querySelector('#' + id);
       if (node) node.hidden = !order.includes(id);
@@ -242,6 +231,7 @@ window.orderedLayout = function (layout) {
     const links = SITE.contact.links.map(function (link) {
       return '<a class="contact-link" href="' + escapeHtml(link.url) + '" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="#icon-' + escapeHtml(link.icon) + '"/></svg><span>' + escapeHtml(link.label[lang]) + '</span></a>';
     }).join('');
+    if (!email && !links) { contactRoot.hidden = true; contactRoot.innerHTML = ''; return; }
     contactRoot.innerHTML = '<p class="section-label">' + escapeHtml(t('contact.label')) + '</p>'
       + (email ? '<a class="text-link contact-email" href="mailto:' + escapeHtml(email) + '"><span>' + escapeHtml(email) + '</span>' + arrowIcon(false) + '</a>' : '')
       + (links ? '<div class="contact-links">' + links + '</div>' : '');

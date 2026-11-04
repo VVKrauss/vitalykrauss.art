@@ -59,9 +59,7 @@ test('normalizeCatalogue carries hero intro and contact separately from about', 
 });
 
 test('orderedLayout keeps only enabled sections in their given order', async () => {
- const source = await readFile(new URL('../js/main.js', import.meta.url), 'utf8');
- const snippet = source.slice(0, source.indexOf('\n(function () {'));
- const context = { window: {} }; vm.createContext(context); vm.runInContext(snippet, context);
+ const context={window:{I18N:{t:key=>key}}};vm.createContext(context);vm.runInContext(await readFile(new URL('../js/content.js', import.meta.url), 'utf8'), context);
  const layout = [{ id: 'shop', enabled: false }, { id: 'works', enabled: true }, { id: 'contact', enabled: true }];
  assert.deepEqual(Array.from(context.window.orderedLayout(layout)), ['works', 'contact']);
 });
@@ -72,4 +70,11 @@ test('renderSeriesBody renders the series statement and all its works', async ()
  const html = context.window.renderSeriesBody(series, 'en');
  assert.match(html, /Para one/);
  assert.match(html, /data-open-work="w1"/);
+});
+
+test('navEntries resolves enabled sections to labelled links, prefixed for cross-page use', async () => {
+ const context={window:{I18N:{t:key=>key}}};vm.createContext(context);vm.runInContext(await readFile(new URL('../js/content.js', import.meta.url), 'utf8'), context);
+ const layout = [{id:'shop',enabled:false},{id:'works',enabled:true},{id:'contact',enabled:true}];
+ const entries = context.window.navEntries(layout, 'en', 'index.html');
+ assert.deepEqual(Array.from(entries, e => [e.id, e.href]), [['works', 'index.html#works'], ['contact', 'index.html#contact']]);
 });

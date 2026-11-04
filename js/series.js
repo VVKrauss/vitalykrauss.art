@@ -6,15 +6,16 @@
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const words=()=>new Proxy({}, {get:(_,key)=>window.I18N.t('exhibition.'+key,lang)});
  function preference(key,value){try{if(value===undefined)return localStorage.getItem(key);localStorage.setItem(key,value);}catch{}}
- function header(){document.documentElement.lang=lang;window.I18N.apply(lang);document.querySelectorAll('[data-lang]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.lang===lang)));document.querySelector('[data-close-photo]').textContent=words().close;const dark=document.documentElement.dataset.theme==='dark';document.querySelector('#theme-toggle').setAttribute('aria-label',window.I18N.t(dark?'theme.light':'theme.dark',lang));if(catalogue)window.VKCart.update(catalogue.works,lang,preference('vk-units')==='in'?'in':'cm',true);}
+ function header(){document.documentElement.lang=lang;window.I18N.apply(lang);window.applyNav(document.querySelector('#site-navigation'),catalogue?.layout || window.LAYOUT_IDS.map(id=>({id,enabled:true})),lang,'index.html');document.querySelectorAll('[data-lang]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.lang===lang)));document.querySelector('[data-close-photo]').textContent=words().close;const dark=document.documentElement.dataset.theme==='dark';document.querySelector('#theme-toggle').setAttribute('aria-label',window.I18N.t(dark?'theme.light':'theme.dark',lang));if(catalogue)window.VKCart.update(catalogue.works,lang,preference('vk-units')==='in'?'in':'cm',true);}
+ function backHref(){return catalogue && !window.orderedLayout(catalogue.layout).includes('works') ? 'index.html' : 'index.html#works';}
 
  function currentSeries(){return catalogue?.series.find(s=>s.id===id);}
  function render(){
-  header();const series=currentSeries(),backLabel=window.I18N.t('works.label',lang);
-  if(!series){root.innerHTML='<a class="text-link" href="index.html#works">← '+backLabel+'</a><h1>'+words().missing+'</h1>';return;}
+  header();const series=currentSeries(),backLabel=window.I18N.t('works.label',lang),back=backHref();
+  if(!series){root.innerHTML='<a class="text-link" href="'+back+'">← '+backLabel+'</a><h1>'+words().missing+'</h1>';return;}
   const title=typeof series.title==='string'?series.title:series.title[lang];
   window.applyAuthor(catalogue.about,lang,{title,description:series.statement[lang][0]});
-  root.innerHTML='<a class="text-link exhibition-back" href="index.html#works">← '+backLabel+'</a><header class="exhibition-intro"><h1>'+esc(title)+'</h1></header>'
+  root.innerHTML='<a class="text-link exhibition-back" href="'+back+'">← '+backLabel+'</a><header class="exhibition-intro"><h1>'+esc(title)+'</h1></header>'
     +'<section class="exhibition-section">'+window.renderSeriesBody(series,lang,slideAt)+'</section>';
  }
  async function load(){header();root.textContent=words().loading;try{const response=await fetch(window.STUDIO_URL+'/api/catalogue',{credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(20000)});if(!response.ok)throw new Error();const data=await response.json();if(!data.publishedAt || !Array.isArray(data.series))throw new Error();catalogue=normalizeCatalogue(data);render();}catch{root.innerHTML='<p>'+words().error+'</p><button type="button" class="ghost">'+words().retry+'</button>';root.querySelector('button').onclick=load;}}

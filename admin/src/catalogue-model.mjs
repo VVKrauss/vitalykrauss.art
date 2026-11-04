@@ -119,7 +119,7 @@ export function normalizeCatalogue(input, mediaRecords, { draft = false } = {}) 
   if (typeof heroSource !== 'object' || Array.isArray(heroSource)) fail('Некорректные данные хедера.');
   const hero = { intro: translated(heroSource.intro) };
 
-  const contactSource = input.contact ?? defaultContact();
+  const contactSource = input.contact ?? { ...defaultContact(), email: (input.about && typeof input.about.email === 'string') ? input.about.email : '' };
   if (typeof contactSource !== 'object' || Array.isArray(contactSource)) fail('Некорректные данные контактов.');
   const contactEmail = string(contactSource.email ?? '', 254);
   if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) fail('Укажите корректную почту для связи.');

@@ -46,6 +46,30 @@ window.normalizeCatalogue = function (source) {
   return {about:source.about?{...source.about,name:text(source.about.name),role:text(source.about.role),intro:text(source.about.intro),description:text(source.about.description),avatar:source.about.avatar?image(source.about.avatar):null}:null,hero,contact,layout,heroWorkId:source.heroWorkId,series:groups,works:works,standaloneWorks,worksOrder,exhibitions:source.exhibitions.filter(e => !e.archived).map((e,i) => ({...e,id:e.id || "exhibition-"+(i+1),title:text(e.title),description:text(e.description),venue:text(e.venue),city:text(e.city),country:text(e.country),startDate:e.startDate || e.year || "",endDate:e.endDate || "",workIds:e.workIds || [],media:(e.media || []).map(m=>({...m,image:image(m.image),thumbnail:image(m.thumbnail || m.image)}))}))};
 };
 
+window.orderedLayout = function (layout) {
+  return (layout || []).filter(entry => entry.enabled).map(entry => entry.id);
+};
+
+const NAV_LABELS = {works:"nav.works",exhibitions:"nav.exhibitions",about:"nav.about",contact:"nav.contact",shop:"nav.shop"};
+
+// Enabled layout sections resolved to {id,href,label}; hrefPrefix lets secondary pages (exhibition.html, series.html) link back to index.html.
+window.navEntries = function (layout, lang, hrefPrefix) {
+  return window.orderedLayout(layout).map(id => ({ id, href: (hrefPrefix || "") + "#" + id, label: window.I18N.t(NAV_LABELS[id], lang) }));
+};
+
+// Rebuilds a <nav>'s <a> links from layout, without disturbing other children (e.g. cart.js relocates theme/lang controls into a .mobile-menu-tools child on narrow viewports).
+window.applyNav = function (navElement, layout, lang, hrefPrefix) {
+  if (!navElement) return;
+  navElement.querySelectorAll(":scope > a").forEach(node => node.remove());
+  const anchor = navElement.querySelector(".mobile-menu-tools");
+  window.navEntries(layout, lang, hrefPrefix).forEach(entry => {
+    const link = document.createElement("a");
+    link.href = entry.href;
+    link.textContent = entry.label;
+    if (anchor) navElement.insertBefore(link, anchor); else navElement.appendChild(link);
+  });
+};
+
 window.exhibitionDate = function(value) {
   if(!/^\d{4}-\d{2}-\d{2}$/.test(value || ''))return value || '';
   return new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T00:00:00Z'));

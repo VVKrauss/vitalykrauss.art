@@ -427,3 +427,22 @@ test('seeded hero/contact/layout/worksOrder round-trip through save, publish and
   assert.equal(publicCatalogue.layout.find(entry => entry.id === 'shop').enabled, false);
   assert.equal(publicCatalogue.contact.links[0].icon, 'instagram');
 });
+
+test('normalizeCatalogue migrates a legacy about.email into contact.email when no contact was saved', () => {
+  const input = {
+    heroWorkId: null, works: [], series: [], exhibitions: [],
+    about: { name: { en: 'Artist' }, role: {}, intro: {}, description: {}, email: 'legacy@example.test' },
+  };
+  const result = normalizeCatalogue(input, []);
+  assert.equal(result.contact.email, 'legacy@example.test');
+});
+
+test('normalizeCatalogue leaves contact.email alone when contact was already saved, even if about.email is also present', () => {
+  const input = {
+    heroWorkId: null, works: [], series: [], exhibitions: [],
+    about: { name: { en: 'Artist' }, role: {}, intro: {}, description: {}, email: 'legacy@example.test' },
+    contact: { email: 'current@example.test', links: [] },
+  };
+  const result = normalizeCatalogue(input, []);
+  assert.equal(result.contact.email, 'current@example.test');
+});
