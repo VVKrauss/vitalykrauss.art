@@ -4,7 +4,6 @@ window.orderedLayout = function (layout) {
 (function () {
   const langButtons = document.querySelectorAll("[data-lang]");
   const worksRoot = document.querySelector("#works");
-  const seriesRoot = worksRoot;
   const exhibitionsRoot = document.querySelector("#exhibitions");
   const contactRoot = document.querySelector("#contact");
   const shopRoot = document.querySelector("#shop");
@@ -16,8 +15,6 @@ window.orderedLayout = function (layout) {
   const viewerBody = document.querySelector("#viewer-body");
   const heroImage = document.querySelector("#hero-image");
 
-  const openSeries = new Set();
-  const slideAt = Object.create(null);
   const request = window.VKCart.items;
   let lang = readPreference("vk-lang") || "en";
   let units = readPreference("vk-units") === "in" ? "in" : "cm";
@@ -73,7 +70,6 @@ window.orderedLayout = function (layout) {
       if (catalogueRevision === revision){renderStatus();return;}
       const normalized = normalizeCatalogue(data);
       Object.assign(SITE, normalized); catalogueRevision = revision;
-      SITE.series.forEach(s => openSeries.add(s.id));
       if (openWorkId && !findWork(openWorkId)) viewer.close();
       const selectedWork=readPreference('vk-shop-work');shopAt=Math.max(0,shopEntries().findIndex(entry=>entry.item.id===selectedWork));shopSize=readPreference('vk-shop-size') || '';render();
     } catch (error) {catalogueFailed=true;renderStatus();console.warn('Catalogue refresh failed; will retry.',error.message);}
@@ -127,16 +123,6 @@ window.orderedLayout = function (layout) {
     const thumbnailButton = event.target.closest("[data-go]");
     if (thumbnailButton) {
       stepSlide(thumbnailButton.dataset.slideshow, 0, Number(thumbnailButton.dataset.go));
-      return;
-    }
-
-    const seriesButton = event.target.closest("[data-series-toggle]");
-    if (seriesButton) {
-      const id = seriesButton.dataset.seriesToggle;
-      if (openSeries.has(id)) openSeries.delete(id);
-      else openSeries.add(id);
-      renderSeries();
-      seriesRoot.querySelector('[data-series-toggle="' + escapeHtml(id) + '"]').focus({ preventScroll: true });
       return;
     }
 
@@ -268,45 +254,6 @@ window.orderedLayout = function (layout) {
     const message=catalogueFailed?t(catalogueRevision?'catalogue.stale':'catalogue.error'):t('catalogue.loading');
     node.innerHTML='<p>'+escapeHtml(message)+'</p>'+(catalogueFailed?'<button type="button" class="ghost" data-retry-catalogue '+(cataloguePending?'disabled':'')+'>'+escapeHtml(t('catalogue.retry'))+'</button>':'');
   }
-  function renderSeries() {
-    seriesRoot.innerHTML = '<p class="section-label">' + escapeHtml(t("series.label")) + "</p>"
-      + (SITE.series.length?SITE.series.map(renderOneSeries).join(""):(catalogueRevision?'<p>'+escapeHtml(t("catalogue.empty"))+"</p>":""));
-  }
-
-  function renderOneSeries(series) {
-    const open = openSeries.has(series.id);
-    const title = seriesTitle(series);
-    const withLine = series.with
-      ? '<p class="series-with">' + escapeHtml(tf("series.with", { name: series.with })) + "</p>"
-      : "";
-    const body = open
-      ? '<div class="series-body" id="body-' + escapeHtml(series.id) + '">'
-        + '<div class="statement"><p>' + escapeHtml(series.statement[lang][0]) + '</p>'
-        + (series.statement[lang].length > 1 ? '<details><summary>' + escapeHtml(t("series.about")) + '</summary>'
-        + series.statement[lang].slice(1).map(function (paragraph) {
-          return "<p>" + escapeHtml(paragraph) + "</p>";
-        }).join("") + '</details>' : '') + "</div>"
-        + renderSlideshow(series) + "</div>"
-      : '<div class="series-body" id="body-' + escapeHtml(series.id) + '" hidden></div>';
-    return '<article class="series">'
-      + '<h2 class="visually-hidden">' + escapeHtml(title) + "</h2>"
-      + '<button type="button" class="series-toggle" data-series-toggle="' + escapeHtml(series.id) + '" aria-expanded="' + open + '" aria-controls="body-' + escapeHtml(series.id) + '">'
-      + '<span class="series-index">' + escapeHtml(series.index) + "</span>"
-      + '<span class="series-title">' + escapeHtml(title) + "</span>"
-      + '<span class="series-count">' + escapeHtml(tf("series.count", { n: series.works.length })) + '<span class="series-indicator" aria-hidden="true">' + (open ? '−' : '+') + '</span></span>'
-      + "</button>"
-      + withLine
-      + body
-      + "</article>";
-  }
-
-  function renderSlideshow(series) {
-    const count = series.works.length;
-    if (!count) return "";
-    const index = ((slideAt[series.id] || 0) % count + count) % count;
-    return renderGallery(series.id, series.works, index, series);
-  }
-
   function arrowIcon(previous) {
     return '<svg class="icon' + (previous ? ' icon-prev' : '') + '" aria-hidden="true"><use href="#icon-arrow"/></svg>';
   }
@@ -331,27 +278,13 @@ window.orderedLayout = function (layout) {
   }
 
   function stepSlide(seriesId, delta, absoluteIndex, restoreFocus) {
-    if (seriesId === "shop") {
-      const count = shopEntries().length;
-      if (!count) return;
-      shopAt = absoluteIndex == null ? (shopAt + delta + count) % count : ((absoluteIndex % count) + count) % count;
-      renderShop();
-      if (restoreFocus !== false) focusGallery(shopRoot, seriesId, delta, absoluteIndex, shopAt);
-      else revealThumbnail(shopRoot, seriesId);
-      return;
-    }
-    const series = SITE.series.find(function (entry) { return entry.id === seriesId; });
-    if (!series) return;
-    const count = series.works.length;
+    if (seriesId !== "shop") return;
+    const count = shopEntries().length;
     if (!count) return;
-    const current = slideAt[seriesId] || 0;
-    slideAt[seriesId] = absoluteIndex == null
-      ? (current + delta + count) % count
-      : ((absoluteIndex % count) + count) % count;
-    const gallery = seriesRoot.querySelector('.slideshow[data-slideshow="' + seriesId + '"]');
-    if (gallery) gallery.outerHTML = renderSlideshow(series);
-    if (restoreFocus !== false) focusGallery(seriesRoot, seriesId, delta, absoluteIndex, slideAt[seriesId]);
-    else revealThumbnail(seriesRoot, seriesId);
+    shopAt = absoluteIndex == null ? (shopAt + delta + count) % count : ((absoluteIndex % count) + count) % count;
+    renderShop();
+    if (restoreFocus !== false) focusGallery(shopRoot, seriesId, delta, absoluteIndex, shopAt);
+    else revealThumbnail(shopRoot, seriesId);
   }
 
   function focusGallery(root, seriesId, delta, absoluteIndex, index) {

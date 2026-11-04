@@ -71,6 +71,36 @@ window.applyAuthor = function(about,lang,{title,description}={}) {
  const avatar=document.querySelector('#author-avatar');if(avatar){avatar.src=about?.avatar || 'images/author.webp';avatar.alt=name;}
 };
 
+// Statement + slideshow markup for a single series, shared by the Works-grid page and series.html.
+window.renderSeriesBody = function(series, lang, index) {
+  const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const t = key => window.I18N.t(key, lang);
+  const tf = (key, vars) => t(key).replace(/\{(\w+)\}/g, (_, name) => vars[name] == null ? "" : String(vars[name]));
+  const arrowIcon = previous => '<svg class="icon' + (previous ? ' icon-prev' : '') + '" aria-hidden="true"><use href="#icon-arrow"/></svg>';
+  const withLine = series.with ? '<p class="series-with">' + esc(tf("series.with", { name: series.with })) + "</p>" : "";
+  const statement = '<div class="statement"><p>' + esc(series.statement[lang][0]) + "</p>"
+    + (series.statement[lang].length > 1 ? '<details><summary>' + esc(t("series.about")) + '</summary>'
+      + series.statement[lang].slice(1).map(p => "<p>" + esc(p) + "</p>").join("") + "</details>" : "") + "</div>";
+  const works = series.works;
+  const count = works.length;
+  if (!count) return withLine + statement;
+  const at = ((index || 0) % count + count) % count;
+  const item = works[at];
+  const title = item.title[lang];
+  const seriesTitle = series.title ? (typeof series.title === "string" ? series.title : series.title[lang]) : "";
+  const thumbnails = works.map((work, thumbIndex) => '<button type="button" class="slide-thumb" data-go="' + thumbIndex + '" data-slideshow="series" aria-label="' + esc(work.title[lang]) + '" aria-current="' + (thumbIndex === at) + '"><img src="' + esc(work.thumbnail || work.image) + '" alt="" loading="lazy" width="' + work.width + '" height="' + work.height + '"></button>').join("");
+  const gallery = '<div class="slideshow" data-slideshow="series" role="region" aria-roledescription="' + esc(t("slide.gallery")) + '" aria-label="' + esc(seriesTitle) + '" tabindex="0">'
+    + '<div class="slide-frame" data-slideshow="series"><button type="button" class="work" data-open-work="' + esc(item.id) + '" aria-label="' + esc(t("slide.enlarge") + ": " + title) + '">'
+    + '<img src="' + esc(item.image) + '" width="' + item.width + '" height="' + item.height + '" alt="' + esc(title) + '" loading="lazy">'
+    + "</button></div>"
+    + '<div class="slide-bar"><p class="slide-caption" aria-live="polite" aria-atomic="true"><span class="work-name">' + esc(title) + '</span><span class="slide-position">' + String(at + 1).padStart(2, "0") + " / " + String(count).padStart(2, "0") + '</span></p>'
+    + '<div class="slide-controls"><button type="button" class="slide-arrow" data-step="-1" data-slideshow="series" aria-label="' + esc(t("slide.prev")) + '">' + arrowIcon(true) + '</button>'
+    + '<button type="button" class="slide-arrow" data-step="1" data-slideshow="series" aria-label="' + esc(t("slide.next")) + '">' + arrowIcon(false) + "</button></div></div>"
+    + '<p class="work-description">' + esc(item.description[lang]) + "</p>"
+    + '<div class="slide-thumbnails" aria-label="' + esc(t("slide.thumbnails")) + '">' + thumbnails + "</div></div>";
+  return withLine + statement + gallery;
+};
+
 window.exhibitionPlace = function(item,lang){return [item.venue?.[lang],item.city?.[lang],item.country?.[lang]].filter(Boolean).join(', ');};
 window.exhibitionMeta = function(item,lang){
  const dates=window.exhibitionDate(item.startDate)+(item.endDate && item.endDate!==item.startDate?' — '+window.exhibitionDate(item.endDate):'');

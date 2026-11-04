@@ -65,3 +65,11 @@ test('orderedLayout keeps only enabled sections in their given order', async () 
  const layout = [{ id: 'shop', enabled: false }, { id: 'works', enabled: true }, { id: 'contact', enabled: true }];
  assert.deepEqual(Array.from(context.window.orderedLayout(layout)), ['works', 'contact']);
 });
+
+test('renderSeriesBody renders the series statement and all its works', async () => {
+ const context={window:{I18N:{t:key=>key}}};vm.createContext(context);vm.runInContext(await readFile(new URL('../js/content.js', import.meta.url), 'utf8'), context);
+ const series = {statement:{en:['Para one']}, works:[{id:'w1', title:{en:'Work'}, description:{en:''}, image:'', thumbnail:'', width:1, height:1}]};
+ const html = context.window.renderSeriesBody(series, 'en');
+ assert.match(html, /Para one/);
+ assert.match(html, /data-open-work="w1"/);
+});
