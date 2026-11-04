@@ -397,3 +397,33 @@ test('worksOrder reconciles stale and missing entries like series.workIds', () =
   const result = normalizeCatalogue(input, media);
   assert.deepEqual(result.worksOrder, [{ type: 'series', id: 's1' }, { type: 'work', id: 'w-standalone' }]);
 });
+
+test('seeded hero/contact/layout/worksOrder round-trip through save, publish and the public catalogue', async t => {
+  const s = await fixture(t, true);
+  const state = await (await s.req('/api/studio/content')).json();
+  assert.ok(state.draft.hero.intro.en.length > 0);
+  assert.equal(typeof state.draft.contact.email, 'string');
+  assert.deepEqual(state.draft.layout.map(entry => entry.id), ['works', 'exhibitions', 'about', 'contact', 'shop']);
+  assert.ok(state.draft.worksOrder.length > 0);
+
+  const reordered = [
+    { id: 'shop', enabled: false },
+    { id: 'exhibitions', enabled: true },
+    { id: 'works', enabled: true },
+    { id: 'about', enabled: true },
+    { id: 'contact', enabled: true },
+  ];
+  state.draft.layout = reordered;
+  state.draft.contact.links.push({ id: 'ig', label: { en: 'Instagram' }, url: 'https://instagram.com/vitaly' });
+  const saved = await (await s.save(state.version, state.draft)).json();
+  assert.deepEqual(saved.draft.layout, reordered);
+  assert.equal(saved.draft.contact.links[0].icon, 'instagram');
+
+  const published = await (await s.req('/api/studio/publish', { method: 'POST', body: { version: saved.version, draft: saved.draft } })).json();
+  assert.equal(published.draft.layout[0].id, 'shop');
+  assert.equal(published.draft.layout[0].enabled, false);
+  const publicCatalogue = await (await s.req('/api/catalogue')).json();
+  assert.deepEqual(publicCatalogue.layout.map(entry => entry.id), ['shop', 'exhibitions', 'works', 'about', 'contact']);
+  assert.equal(publicCatalogue.layout.find(entry => entry.id === 'shop').enabled, false);
+  assert.equal(publicCatalogue.contact.links[0].icon, 'instagram');
+});

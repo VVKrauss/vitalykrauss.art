@@ -447,7 +447,18 @@
         "workIds": [],
         "archived": false
       }
-    ]
+    ],
+    "hero": {
+      "intro": {
+        "en": "I am a digital artist. I work with images, colour and familiar forms, looking for what usually escapes our attention.",
+        "ru": "Я — цифровой художник. Работаю с изображением, цветом и привычными формами, чтобы замечать то, что обычно ускользает от внимания.",
+        "es": "Soy artista digital. Trabajo con imágenes, color y formas familiares para descubrir lo que suele escapar a nuestra atención."
+      }
+    },
+    "contact": {
+      "email": "kraussvitaliy@gmail.com",
+      "links": []
+    }
   },
   "media": [
     {
