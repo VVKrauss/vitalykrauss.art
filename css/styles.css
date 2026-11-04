@@ -266,6 +266,12 @@ dialog::backdrop { background: oklch(0 0 0 / .55); }
 .series-link .series-title{min-width:0;overflow-wrap:anywhere;transition:color 150ms cubic-bezier(.2,0,0,1)}
 .series-link:hover .series-title{color:var(--accent)}
 .series-link .series-count .icon{width:20px;height:20px}
+.works-thumbs{display:flex;gap:.7rem;overflow-x:auto;margin:1.4rem 0 0 4.5rem;padding:3px 3px 10px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.works-thumb{flex:0 0 auto;display:block;height:96px;padding:0;border:0;background:transparent;cursor:pointer;opacity:.85;transition:opacity 150ms ease-out}
+.works-thumb img{display:block;height:100%;width:auto;max-width:none;object-fit:contain;outline:1px solid rgb(0 0 0 / .1);outline-offset:-1px}
+.works-thumb:hover,.works-thumb:focus-visible{opacity:1}
+[data-theme=dark] .works-thumb img{outline-color:rgb(255 255 255 / .1)}
+@media(max-width:760px){.works-thumbs{margin-left:0}.works-thumb{height:72px}}
 
 /* Contact: email plus an ordered list of links with an auto-detected icon. */
 .contact-email{margin:0 0 1.6rem}

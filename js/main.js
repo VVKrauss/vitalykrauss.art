@@ -203,23 +203,30 @@
 
   function renderWorks() {
     let index = 0;
-    const row = function (tag, attrs, title, meta) {
+    const thumb = function (tag, attrs, work) {
+      return '<' + tag + ' class="works-thumb" ' + attrs + ' aria-label="' + escapeHtml(work.title[lang]) + '">'
+        + '<img src="' + escapeHtml(work.thumbnail || work.image) + '" alt="" loading="lazy" width="' + work.width + '" height="' + work.height + '"></' + tag + '>';
+    };
+    const row = function (tag, attrs, title, meta, thumbs) {
       index += 1;
       return '<article class="series"><' + tag + ' class="series-toggle series-link" ' + attrs + '>'
         + '<span class="series-index">' + pad(index) + '</span>'
         + '<span class="series-title">' + escapeHtml(title) + '</span>'
         + '<span class="series-count">' + escapeHtml(meta) + arrowIcon(false) + '</span>'
-        + '</' + tag + '></article>';
+        + '</' + tag + '><div class="works-thumbs">' + thumbs + '</div></article>';
     };
     const entries = SITE.worksOrder.map(function (entry) {
       if (entry.type === 'series') {
         const series = SITE.series.find(function (item) { return item.id === entry.id; });
         if (!series || !series.works.length) return '';
-        return row('a', 'href="series.html?id=' + encodeURIComponent(series.id) + '"', seriesTitle(series), tf('series.count', { n: series.works.length }));
+        const href = 'href="series.html?id=' + encodeURIComponent(series.id) + '"';
+        return row('a', href, seriesTitle(series), tf('series.count', { n: series.works.length }),
+          series.works.map(function (work) { return thumb('a', href, work); }).join(''));
       }
       const work = SITE.standaloneWorks.find(function (item) { return item.id === entry.id; });
       if (!work) return '';
-      return row('button', 'type="button" data-open-work="' + escapeHtml(work.id) + '"', work.title[lang], work.year || '');
+      const open = 'type="button" data-open-work="' + escapeHtml(work.id) + '"';
+      return row('button', open, work.title[lang], work.year || '', thumb('button', open, work));
     }).join('');
     worksRoot.innerHTML = '<p class="section-label">' + escapeHtml(t('works.label')) + '</p>'
       + (entries || (catalogueRevision ? '<p>' + escapeHtml(t('catalogue.empty')) + '</p>' : ''));
