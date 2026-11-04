@@ -57,3 +57,11 @@ test('normalizeCatalogue carries hero intro and contact separately from about', 
  assert.equal(normalized.contact.email, 'a@b.test');
  assert.equal(normalized.contact.links[0].icon, 'instagram');
 });
+
+test('orderedLayout keeps only enabled sections in their given order', async () => {
+ const source = await readFile(new URL('../js/main.js', import.meta.url), 'utf8');
+ const snippet = source.slice(0, source.indexOf('\n(function () {'));
+ const context = { window: {} }; vm.createContext(context); vm.runInContext(snippet, context);
+ const layout = [{ id: 'shop', enabled: false }, { id: 'works', enabled: true }, { id: 'contact', enabled: true }];
+ assert.deepEqual(Array.from(context.window.orderedLayout(layout)), ['works', 'contact']);
+});

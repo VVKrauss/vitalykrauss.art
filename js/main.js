@@ -1,8 +1,17 @@
+window.orderedLayout = function (layout) {
+  return (layout || []).filter(function (entry) { return entry.enabled; }).map(function (entry) { return entry.id; });
+};
 (function () {
   const langButtons = document.querySelectorAll("[data-lang]");
-  const seriesRoot = document.querySelector("#series");
+  const worksRoot = document.querySelector("#works");
+  const seriesRoot = worksRoot;
   const exhibitionsRoot = document.querySelector("#exhibitions");
+  const contactRoot = document.querySelector("#contact");
   const shopRoot = document.querySelector("#shop");
+  const navRoot = document.querySelector("#site-navigation");
+  const catalogueContent = document.querySelector("#catalogue-content");
+  const SECTION_IDS = ["works", "exhibitions", "about", "contact", "shop"];
+  const NAV_LABELS = {works:"nav.works",exhibitions:"nav.exhibitions",about:"nav.about",contact:"nav.contact",shop:"nav.shop"};
   const viewer = document.querySelector("#viewer");
   const viewerBody = document.querySelector("#viewer-body");
   const heroImage = document.querySelector("#hero-image");
@@ -175,6 +184,9 @@
     langButtons.forEach(function (button) {
       button.setAttribute("aria-pressed", String(button.dataset.lang === lang));
     });
+    applyLayout();
+    const heroIntroNode = document.querySelector("[data-hero-intro]");
+    if (heroIntroNode) { heroIntroNode.textContent = SITE.hero.intro[lang]; heroIntroNode.hidden = !SITE.hero.intro[lang]; }
     const heroWork = findWork(SITE.heroWorkId);
     heroImage.closest("figure").hidden = !heroWork;
     if (heroWork) {
@@ -185,12 +197,68 @@
     document.querySelectorAll('[data-unit]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.unit===units)));
     window.VKCart.update(SITE.works,lang,units,Boolean(catalogueRevision));
     updateTheme();
-    renderSeries();
+    renderWorks();
     renderExhibitions();
+    renderContact();
     renderShop();
     updateCount();
     if (viewer.open && openWorkId) openViewer(openWorkId);
 
+  }
+
+  function applyLayout() {
+    const order = window.orderedLayout(SITE.layout);
+    navRoot.querySelectorAll(':scope > a').forEach(function (node) { node.remove(); });
+    const anchor = navRoot.querySelector('.mobile-menu-tools');
+    order.forEach(function (id) {
+      const link = document.createElement('a');
+      link.href = '#' + id;
+      link.textContent = t(NAV_LABELS[id]);
+      if (anchor) navRoot.insertBefore(link, anchor); else navRoot.appendChild(link);
+    });
+    SECTION_IDS.forEach(function (id) {
+      const node = document.querySelector('#' + id);
+      if (node) node.hidden = !order.includes(id);
+    });
+    order.forEach(function (id) {
+      const node = document.querySelector('#' + id);
+      if (node && catalogueContent) catalogueContent.appendChild(node);
+    });
+  }
+
+  function renderWorks() {
+    const entries = SITE.worksOrder.map(function (entry) {
+      if (entry.type === 'series') {
+        const series = SITE.series.find(function (item) { return item.id === entry.id; });
+        if (!series || !series.works.length) return '';
+        const cover = series.works[Math.floor(Math.random() * series.works.length)];
+        return '<a class="work-card series-card" href="series.html?id=' + encodeURIComponent(series.id) + '">'
+          + '<img src="' + escapeHtml(cover.thumbnail || cover.image) + '" alt="" loading="lazy" width="' + cover.width + '" height="' + cover.height + '">'
+          + '<span class="work-card-title">' + escapeHtml(seriesTitle(series)) + '</span>'
+          + '<span class="work-card-meta">' + escapeHtml(tf('series.count', { n: series.works.length })) + '</span>'
+          + '</a>';
+      }
+      const work = SITE.standaloneWorks.find(function (item) { return item.id === entry.id; });
+      if (!work) return '';
+      return '<button type="button" class="work-card" data-open-work="' + escapeHtml(work.id) + '">'
+        + '<img src="' + escapeHtml(work.thumbnail || work.image) + '" alt="" loading="lazy" width="' + work.width + '" height="' + work.height + '">'
+        + '<span class="work-card-title">' + escapeHtml(work.title[lang]) + '</span>'
+        + (work.year ? '<span class="work-card-meta">' + escapeHtml(work.year) + '</span>' : '')
+        + '</button>';
+    }).join('');
+    worksRoot.innerHTML = '<p class="section-label">' + escapeHtml(t('works.label')) + '</p>'
+      + (entries ? '<div class="works-grid">' + entries + '</div>' : (catalogueRevision ? '<p>' + escapeHtml(t('catalogue.empty')) + '</p>' : ''));
+  }
+
+  function renderContact() {
+    if (!contactRoot) return;
+    const email = SITE.contact.email;
+    const links = SITE.contact.links.map(function (link) {
+      return '<a class="contact-link" href="' + escapeHtml(link.url) + '" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="#icon-' + escapeHtml(link.icon) + '"/></svg><span>' + escapeHtml(link.label[lang]) + '</span></a>';
+    }).join('');
+    contactRoot.innerHTML = '<p class="section-label">' + escapeHtml(t('contact.label')) + '</p>'
+      + (email ? '<a class="text-link contact-email" href="mailto:' + escapeHtml(email) + '"><span>' + escapeHtml(email) + '</span>' + arrowIcon(false) + '</a>' : '')
+      + (links ? '<div class="contact-links">' + links + '</div>' : '');
   }
 
   function renderStatus(){
@@ -408,6 +476,8 @@
       const item = series.works.find(function (work) { return work.id === id; });
       if (item) return { work: item, series: series };
     }
+    const standalone = SITE.standaloneWorks.find(function (work) { return work.id === id; });
+    if (standalone) return { work: standalone, series: { standalone: true, works: [standalone], with: "" } };
     return null;
   }
 
@@ -416,7 +486,7 @@
   }
 
   function altText(item, series) {
-    return item.title[lang] + ", " + seriesTitle(series);
+    return series.standalone ? item.title[lang] : item.title[lang] + ", " + seriesTitle(series);
   }
 
   function unitControls() {
