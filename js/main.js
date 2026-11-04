@@ -202,27 +202,27 @@
   }
 
   function renderWorks() {
+    let index = 0;
+    const row = function (tag, attrs, title, meta) {
+      index += 1;
+      return '<article class="series"><' + tag + ' class="series-toggle series-link" ' + attrs + '>'
+        + '<span class="series-index">' + pad(index) + '</span>'
+        + '<span class="series-title">' + escapeHtml(title) + '</span>'
+        + '<span class="series-count">' + escapeHtml(meta) + arrowIcon(false) + '</span>'
+        + '</' + tag + '></article>';
+    };
     const entries = SITE.worksOrder.map(function (entry) {
       if (entry.type === 'series') {
         const series = SITE.series.find(function (item) { return item.id === entry.id; });
         if (!series || !series.works.length) return '';
-        const cover = series.works[Math.floor(Math.random() * series.works.length)];
-        return '<a class="work-card series-card" href="series.html?id=' + encodeURIComponent(series.id) + '">'
-          + '<img src="' + escapeHtml(cover.image) + '" alt="" loading="lazy" width="' + cover.width + '" height="' + cover.height + '">'
-          + '<span class="work-card-title">' + escapeHtml(seriesTitle(series)) + '</span>'
-          + '<span class="work-card-meta">' + escapeHtml(tf('series.count', { n: series.works.length })) + '</span>'
-          + '</a>';
+        return row('a', 'href="series.html?id=' + encodeURIComponent(series.id) + '"', seriesTitle(series), tf('series.count', { n: series.works.length }));
       }
       const work = SITE.standaloneWorks.find(function (item) { return item.id === entry.id; });
       if (!work) return '';
-      return '<button type="button" class="work-card" data-open-work="' + escapeHtml(work.id) + '">'
-        + '<img src="' + escapeHtml(work.image) + '" alt="" loading="lazy" width="' + work.width + '" height="' + work.height + '">'
-        + '<span class="work-card-title">' + escapeHtml(work.title[lang]) + '</span>'
-        + (work.year ? '<span class="work-card-meta">' + escapeHtml(work.year) + '</span>' : '')
-        + '</button>';
+      return row('button', 'type="button" data-open-work="' + escapeHtml(work.id) + '"', work.title[lang], work.year || '');
     }).join('');
     worksRoot.innerHTML = '<p class="section-label">' + escapeHtml(t('works.label')) + '</p>'
-      + (entries ? '<div class="works-grid">' + entries + '</div>' : (catalogueRevision ? '<p>' + escapeHtml(t('catalogue.empty')) + '</p>' : ''));
+      + (entries || (catalogueRevision ? '<p>' + escapeHtml(t('catalogue.empty')) + '</p>' : ''));
   }
 
   function renderContact() {
