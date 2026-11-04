@@ -261,17 +261,15 @@ dialog::backdrop { background: oklch(0 0 0 / .55); }
 @media(max-width:1050px){.exhibition.with-cover{grid-template-columns:120px minmax(0,1fr)}.exhibition-cover{grid-row:auto}.exhibition.with-cover>div{grid-column:2}}
 @media(max-width:480px){.exhibition.with-cover{grid-template-columns:88px minmax(0,1fr)}}
 
-/* Works list: one row per series (links to series.html) or standalone work (opens the viewer). */
-.series-link{color:inherit;text-decoration:none;cursor:pointer;font:inherit}
-.series-link .series-title{min-width:0;overflow-wrap:anywhere;transition:color 150ms cubic-bezier(.2,0,0,1)}
-.series-link:hover .series-title{color:var(--accent)}
-.series-link .series-count .icon{width:20px;height:20px}
-.works-thumbs{display:flex;gap:.7rem;overflow-x:auto;margin:1.4rem 0 0 4.5rem;padding:3px 3px 10px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
-.works-thumb{flex:0 0 auto;display:block;height:96px;padding:0;border:0;background:transparent;cursor:pointer;opacity:.85;transition:opacity 150ms ease-out}
-.works-thumb img{display:block;height:100%;width:auto;max-width:none;object-fit:contain;outline:1px solid rgb(0 0 0 / .1);outline-offset:-1px}
-.works-thumb:hover,.works-thumb:focus-visible{opacity:1}
-[data-theme=dark] .works-thumb img{outline-color:rgb(255 255 255 / .1)}
-@media(max-width:760px){.works-thumbs{margin-left:0}.works-thumb{height:72px}}
+/* Works: same row layout as exhibitions; standalone works use buttons that open the viewer. */
+.works-entry button.exhibition-cover,.works-entry button.works-entry-title,.works-entry button.text-link{padding:0;background:transparent;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.works-entry button.exhibition-cover,.works-entry button.works-entry-title{border:0}
+.works-entry button.text-link{border:0;border-bottom:1px solid var(--ink)}
+.works-entry button.text-link:hover{border-bottom-color:var(--accent)}
+.works-entry .works-entry-title{color:inherit;text-decoration:none}
+.works-entry .works-entry-title:hover{text-decoration:underline;text-underline-offset:.15em}
+.works-entry .exhibition-cover img{outline:1px solid rgb(0 0 0 / .1);outline-offset:-1px}
+[data-theme=dark] .works-entry .exhibition-cover img{outline-color:rgb(255 255 255 / .1)}
 
 /* Contact: email plus an ordered list of links with an auto-detected icon. */
 .contact-email{margin:0 0 1.6rem}
