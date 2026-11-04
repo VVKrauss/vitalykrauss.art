@@ -27,11 +27,33 @@ test('exhibition metadata joins dates and translated place including optional co
  assert.equal(context.window.exhibitionMeta({startDate:'',country:{en:'United Kingdom'}},'en'),'United Kingdom');
 });
 
-test('published About intro updates both the hero and About block, including clearing it',async()=>{
- const hero={textContent:'Old series paragraph'},intro={textContent:''},biography={textContent:''},meta={content:''};
- const document={title:'',querySelector:selector=>selector==='meta[name="description"]'?meta:null,querySelectorAll:selector=>selector==='[data-author-intro]'?[hero,intro]:selector==='[data-author-description]'?[biography]:[]};
+test('published About intro updates the About block, including clearing it',async()=>{
+ const intro={textContent:''},biography={textContent:''},meta={content:''};
+ const document={title:'',querySelector:selector=>selector==='meta[name="description"]'?meta:null,querySelectorAll:selector=>selector==='[data-author-intro]'?[intro]:selector==='[data-author-description]'?[biography]:[]};
  const context={window:{I18N:{t:()=>''}},document};vm.createContext(context);vm.runInContext(await readFile(new URL('../js/content.js',import.meta.url),'utf8'),context);
  context.window.applyAuthor({name:{en:'Artist'},role:{en:'Digital artist'},intro:{en:'Published author introduction'},description:{en:'Full biography'}},'en');
- assert.equal(hero.textContent,'Published author introduction');assert.equal(intro.textContent,hero.textContent);assert.equal(biography.textContent,'Full biography');
- context.window.applyAuthor({intro:{en:''},description:{en:''}},'en');assert.equal(hero.textContent,'');assert.equal(hero.hidden,true);assert.equal(intro.hidden,true);assert.equal(biography.hidden,true);
+ assert.equal(intro.textContent,'Published author introduction');assert.equal(biography.textContent,'Full biography');
+ context.window.applyAuthor({intro:{en:''},description:{en:''}},'en');assert.equal(intro.textContent,'');assert.equal(intro.hidden,true);assert.equal(biography.hidden,true);
+});
+
+test('normalizeCatalogue defaults layout and splits standalone works from series', async () => {
+ const context={window:{I18N:{t:()=>''}},URL,location:{href:'https://example.test/'},Intl,document:{}};vm.createContext(context);vm.runInContext(await readFile(new URL('../js/content.js',import.meta.url),'utf8'),context);
+ const source = { about:{name:{en:'A'}}, heroWorkId:null, works:[
+  {id:'w1', title:{en:'Solo'}, description:{}, seriesId:null, image:'', thumbnail:'', width:1, height:1, sizes:[]},
+ ], series:[], exhibitions:[] };
+ const normalized = context.window.normalizeCatalogue(source);
+ assert.equal(normalized.series.length, 0);
+ assert.equal(normalized.standaloneWorks.length, 1);
+ assert.deepEqual(Array.from(normalized.layout, s => s.id), ['works','exhibitions','about','contact','shop']);
+ assert.equal(JSON.stringify(normalized.worksOrder), JSON.stringify([{type:'work', id:'w1'}]));
+});
+
+test('normalizeCatalogue carries hero intro and contact separately from about', async () => {
+ const context={window:{I18N:{t:()=>''}},URL,location:{href:'https://example.test/'},Intl,document:{}};vm.createContext(context);vm.runInContext(await readFile(new URL('../js/content.js',import.meta.url),'utf8'),context);
+ const source = { about:{name:{en:'A'}}, hero:{intro:{en:'Short'}}, contact:{email:'a@b.test', links:[{id:'l1',label:{en:'IG'},url:'https://instagram.com/a',icon:'instagram'}]},
+  heroWorkId:null, works:[], series:[], exhibitions:[] };
+ const normalized = context.window.normalizeCatalogue(source);
+ assert.equal(normalized.hero.intro.en, 'Short');
+ assert.equal(normalized.contact.email, 'a@b.test');
+ assert.equal(normalized.contact.links[0].icon, 'instagram');
 });

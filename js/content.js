@@ -1,5 +1,6 @@
 window.STUDIO_URL="https://studio.vitalykrauss.art";
-window.SITE={currency:"EUR",about:null,heroWorkId:null,works:[],series:[],exhibitions:[]};
+window.LAYOUT_IDS=["works","exhibitions","about","contact","shop"];
+window.SITE={currency:"EUR",about:null,hero:{intro:{en:"",ru:"",es:""}},contact:{email:"",links:[]},layout:window.LAYOUT_IDS.map(id=>({id,enabled:true})),heroWorkId:null,works:[],series:[],standaloneWorks:[],worksOrder:[],exhibitions:[]};
 // Normalize the published snapshot to the public presentation model.
 window.normalizeCatalogue = function (source) {
   const text = function (value) {
@@ -24,11 +25,25 @@ window.normalizeCatalogue = function (source) {
     return {id:w.id,title:text(w.title),description:text(w.description),year:w.year || "",seriesId:w.seriesId,image:image(w.image),thumbnail:image(w.thumbnail || w.image),width:w.width,height:w.height,
       offers:sizes.filter(o => Number.isFinite(o.price) && o.price > 0).map(o => ({id:o.id,size:o.widthCm+" × "+o.heightCm+" cm",price:o.price}))};
   });
-  const standalone = {id:"__standalone",index:"",title:Object.fromEntries(["en","ru","es"].map(lang=>[lang,window.I18N.t("exhibition.works",lang)])),with:"",statement:{en:[""],ru:[""],es:[""]},works:[],standalone:true};
-  works.forEach(w => (groups.find(s => s.id === w.seriesId) || standalone).works.push(w));
+  works.forEach(w => { const group=groups.find(s => s.id === w.seriesId); if(group) group.works.push(w); });
   groups.forEach(group=>{const ids=source.series.find(s=>s.id===group.id)?.workIds || [];group.works.sort((a,b)=>(ids.includes(a.id)?ids.indexOf(a.id):9999)-(ids.includes(b.id)?ids.indexOf(b.id):9999));});
-  if (standalone.works.length) groups.push(standalone);
-  return {about:source.about?{...source.about,name:text(source.about.name),role:text(source.about.role),intro:text(source.about.intro),description:text(source.about.description),avatar:source.about.avatar?image(source.about.avatar):null}:null,heroWorkId:source.heroWorkId,series:groups,works:works,exhibitions:source.exhibitions.filter(e => !e.archived).map((e,i) => ({...e,id:e.id || "exhibition-"+(i+1),title:text(e.title),description:text(e.description),venue:text(e.venue),city:text(e.city),country:text(e.country),startDate:e.startDate || e.year || "",endDate:e.endDate || "",workIds:e.workIds || [],media:(e.media || []).map(m=>({...m,image:image(m.image),thumbnail:image(m.thumbnail || m.image)}))}))};
+  const standaloneWorks = works.filter(w => !w.seriesId);
+
+  const hero = {intro: text(source.hero?.intro)};
+  const contact = {email: source.contact?.email || "", links: (source.contact?.links || []).map(link => ({id:link.id,label:text(link.label),url:link.url || "",icon:link.icon || "link"}))};
+  const layout = window.LAYOUT_IDS.every(id => (source.layout || []).some(entry => entry.id === id)) && (source.layout || []).length === window.LAYOUT_IDS.length
+    ? source.layout.map(entry => ({id:entry.id,enabled:Boolean(entry.enabled)}))
+    : window.LAYOUT_IDS.map(id => ({id,enabled:true}));
+
+  const seriesIds = new Set(groups.map(g => g.id));
+  const standaloneIds = new Set(standaloneWorks.map(w => w.id));
+  const submittedOrder = (source.worksOrder || []).filter(entry => entry.type==='series' ? seriesIds.has(entry.id) : standaloneIds.has(entry.id));
+  const keptKeys = new Set(submittedOrder.map(entry => entry.type+":"+entry.id));
+  const missingSeries = groups.filter(g => !keptKeys.has("series:"+g.id)).map(g => ({type:"series",id:g.id}));
+  const missingWorks = standaloneWorks.filter(w => !keptKeys.has("work:"+w.id)).map(w => ({type:"work",id:w.id}));
+  const worksOrder = [...submittedOrder, ...missingSeries, ...missingWorks];
+
+  return {about:source.about?{...source.about,name:text(source.about.name),role:text(source.about.role),intro:text(source.about.intro),description:text(source.about.description),avatar:source.about.avatar?image(source.about.avatar):null}:null,hero,contact,layout,heroWorkId:source.heroWorkId,series:groups,works:works,standaloneWorks,worksOrder,exhibitions:source.exhibitions.filter(e => !e.archived).map((e,i) => ({...e,id:e.id || "exhibition-"+(i+1),title:text(e.title),description:text(e.description),venue:text(e.venue),city:text(e.city),country:text(e.country),startDate:e.startDate || e.year || "",endDate:e.endDate || "",workIds:e.workIds || [],media:(e.media || []).map(m=>({...m,image:image(m.image),thumbnail:image(m.thumbnail || m.image)}))}))};
 };
 
 window.exhibitionDate = function(value) {
