@@ -1,14 +1,16 @@
 (function () {
   const langButtons = document.querySelectorAll("[data-lang]");
-  const seriesRoot = document.querySelector("#series");
+  const worksRoot = document.querySelector("#works");
   const exhibitionsRoot = document.querySelector("#exhibitions");
+  const contactRoot = document.querySelector("#contact");
   const shopRoot = document.querySelector("#shop");
+  const navRoot = document.querySelector("#site-navigation");
+  const catalogueContent = document.querySelector("#catalogue-content");
+  const SECTION_IDS = ["works", "exhibitions", "about", "contact", "shop"];
   const viewer = document.querySelector("#viewer");
   const viewerBody = document.querySelector("#viewer-body");
   const heroImage = document.querySelector("#hero-image");
 
-  const openSeries = new Set();
-  const slideAt = Object.create(null);
   const request = window.VKCart.items;
   let lang = readPreference("vk-lang") || "en";
   let units = readPreference("vk-units") === "in" ? "in" : "cm";
@@ -64,7 +66,6 @@
       if (catalogueRevision === revision){renderStatus();return;}
       const normalized = normalizeCatalogue(data);
       Object.assign(SITE, normalized); catalogueRevision = revision;
-      SITE.series.forEach(s => openSeries.add(s.id));
       if (openWorkId && !findWork(openWorkId)) viewer.close();
       const selectedWork=readPreference('vk-shop-work');shopAt=Math.max(0,shopEntries().findIndex(entry=>entry.item.id===selectedWork));shopSize=readPreference('vk-shop-size') || '';render();
     } catch (error) {catalogueFailed=true;renderStatus();console.warn('Catalogue refresh failed; will retry.',error.message);}
@@ -121,16 +122,6 @@
       return;
     }
 
-    const seriesButton = event.target.closest("[data-series-toggle]");
-    if (seriesButton) {
-      const id = seriesButton.dataset.seriesToggle;
-      if (openSeries.has(id)) openSeries.delete(id);
-      else openSeries.add(id);
-      renderSeries();
-      seriesRoot.querySelector('[data-series-toggle="' + escapeHtml(id) + '"]').focus({ preventScroll: true });
-      return;
-    }
-
     const workButton = event.target.closest("[data-open-work]");
     if (workButton) {
       openViewer(workButton.dataset.openWork);
@@ -175,6 +166,9 @@
     langButtons.forEach(function (button) {
       button.setAttribute("aria-pressed", String(button.dataset.lang === lang));
     });
+    applyLayout();
+    const heroIntroNode = document.querySelector("[data-hero-intro]");
+    if (heroIntroNode) { heroIntroNode.textContent = SITE.hero.intro[lang]; heroIntroNode.hidden = !SITE.hero.intro[lang]; }
     const heroWork = findWork(SITE.heroWorkId);
     heroImage.closest("figure").hidden = !heroWork;
     if (heroWork) {
@@ -185,12 +179,62 @@
     document.querySelectorAll('[data-unit]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.unit===units)));
     window.VKCart.update(SITE.works,lang,units,Boolean(catalogueRevision));
     updateTheme();
-    renderSeries();
+    renderWorks();
     renderExhibitions();
+    renderContact();
     renderShop();
     updateCount();
     if (viewer.open && openWorkId) openViewer(openWorkId);
 
+  }
+
+  function applyLayout() {
+    const order = window.orderedLayout(SITE.layout);
+    window.applyNav(navRoot, SITE.layout, lang, '');
+    SECTION_IDS.forEach(function (id) {
+      const node = document.querySelector('#' + id);
+      if (node) node.hidden = !order.includes(id);
+    });
+    order.forEach(function (id) {
+      const node = document.querySelector('#' + id);
+      if (node && catalogueContent) catalogueContent.appendChild(node);
+    });
+  }
+
+  function renderWorks() {
+    const entries = SITE.worksOrder.map(function (entry) {
+      if (entry.type === 'series') {
+        const series = SITE.series.find(function (item) { return item.id === entry.id; });
+        if (!series || !series.works.length) return '';
+        const cover = series.works[Math.floor(Math.random() * series.works.length)];
+        return '<a class="work-card series-card" href="series.html?id=' + encodeURIComponent(series.id) + '">'
+          + '<img src="' + escapeHtml(cover.thumbnail || cover.image) + '" alt="" loading="lazy" width="' + cover.width + '" height="' + cover.height + '">'
+          + '<span class="work-card-title">' + escapeHtml(seriesTitle(series)) + '</span>'
+          + '<span class="work-card-meta">' + escapeHtml(tf('series.count', { n: series.works.length })) + '</span>'
+          + '</a>';
+      }
+      const work = SITE.standaloneWorks.find(function (item) { return item.id === entry.id; });
+      if (!work) return '';
+      return '<button type="button" class="work-card" data-open-work="' + escapeHtml(work.id) + '">'
+        + '<img src="' + escapeHtml(work.thumbnail || work.image) + '" alt="" loading="lazy" width="' + work.width + '" height="' + work.height + '">'
+        + '<span class="work-card-title">' + escapeHtml(work.title[lang]) + '</span>'
+        + (work.year ? '<span class="work-card-meta">' + escapeHtml(work.year) + '</span>' : '')
+        + '</button>';
+    }).join('');
+    worksRoot.innerHTML = '<p class="section-label">' + escapeHtml(t('works.label')) + '</p>'
+      + (entries ? '<div class="works-grid">' + entries + '</div>' : (catalogueRevision ? '<p>' + escapeHtml(t('catalogue.empty')) + '</p>' : ''));
+  }
+
+  function renderContact() {
+    if (!contactRoot) return;
+    const email = SITE.contact.email;
+    const links = SITE.contact.links.map(function (link) {
+      return '<a class="contact-link" href="' + escapeHtml(link.url) + '" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="#icon-' + escapeHtml(link.icon) + '"/></svg><span>' + escapeHtml(link.label[lang]) + '</span></a>';
+    }).join('');
+    if (!email && !links) { contactRoot.hidden = true; contactRoot.innerHTML = ''; return; }
+    contactRoot.innerHTML = '<p class="section-label">' + escapeHtml(t('contact.label')) + '</p>'
+      + (email ? '<a class="text-link contact-email" href="mailto:' + escapeHtml(email) + '"><span>' + escapeHtml(email) + '</span>' + arrowIcon(false) + '</a>' : '')
+      + (links ? '<div class="contact-links">' + links + '</div>' : '');
   }
 
   function renderStatus(){
@@ -200,45 +244,6 @@
     const message=catalogueFailed?t(catalogueRevision?'catalogue.stale':'catalogue.error'):t('catalogue.loading');
     node.innerHTML='<p>'+escapeHtml(message)+'</p>'+(catalogueFailed?'<button type="button" class="ghost" data-retry-catalogue '+(cataloguePending?'disabled':'')+'>'+escapeHtml(t('catalogue.retry'))+'</button>':'');
   }
-  function renderSeries() {
-    seriesRoot.innerHTML = '<p class="section-label">' + escapeHtml(t("series.label")) + "</p>"
-      + (SITE.series.length?SITE.series.map(renderOneSeries).join(""):(catalogueRevision?'<p>'+escapeHtml(t("catalogue.empty"))+"</p>":""));
-  }
-
-  function renderOneSeries(series) {
-    const open = openSeries.has(series.id);
-    const title = seriesTitle(series);
-    const withLine = series.with
-      ? '<p class="series-with">' + escapeHtml(tf("series.with", { name: series.with })) + "</p>"
-      : "";
-    const body = open
-      ? '<div class="series-body" id="body-' + escapeHtml(series.id) + '">'
-        + '<div class="statement"><p>' + escapeHtml(series.statement[lang][0]) + '</p>'
-        + (series.statement[lang].length > 1 ? '<details><summary>' + escapeHtml(t("series.about")) + '</summary>'
-        + series.statement[lang].slice(1).map(function (paragraph) {
-          return "<p>" + escapeHtml(paragraph) + "</p>";
-        }).join("") + '</details>' : '') + "</div>"
-        + renderSlideshow(series) + "</div>"
-      : '<div class="series-body" id="body-' + escapeHtml(series.id) + '" hidden></div>';
-    return '<article class="series">'
-      + '<h2 class="visually-hidden">' + escapeHtml(title) + "</h2>"
-      + '<button type="button" class="series-toggle" data-series-toggle="' + escapeHtml(series.id) + '" aria-expanded="' + open + '" aria-controls="body-' + escapeHtml(series.id) + '">'
-      + '<span class="series-index">' + escapeHtml(series.index) + "</span>"
-      + '<span class="series-title">' + escapeHtml(title) + "</span>"
-      + '<span class="series-count">' + escapeHtml(tf("series.count", { n: series.works.length })) + '<span class="series-indicator" aria-hidden="true">' + (open ? '−' : '+') + '</span></span>'
-      + "</button>"
-      + withLine
-      + body
-      + "</article>";
-  }
-
-  function renderSlideshow(series) {
-    const count = series.works.length;
-    if (!count) return "";
-    const index = ((slideAt[series.id] || 0) % count + count) % count;
-    return renderGallery(series.id, series.works, index, series);
-  }
-
   function arrowIcon(previous) {
     return '<svg class="icon' + (previous ? ' icon-prev' : '') + '" aria-hidden="true"><use href="#icon-arrow"/></svg>';
   }
@@ -263,27 +268,13 @@
   }
 
   function stepSlide(seriesId, delta, absoluteIndex, restoreFocus) {
-    if (seriesId === "shop") {
-      const count = shopEntries().length;
-      if (!count) return;
-      shopAt = absoluteIndex == null ? (shopAt + delta + count) % count : ((absoluteIndex % count) + count) % count;
-      renderShop();
-      if (restoreFocus !== false) focusGallery(shopRoot, seriesId, delta, absoluteIndex, shopAt);
-      else revealThumbnail(shopRoot, seriesId);
-      return;
-    }
-    const series = SITE.series.find(function (entry) { return entry.id === seriesId; });
-    if (!series) return;
-    const count = series.works.length;
+    if (seriesId !== "shop") return;
+    const count = shopEntries().length;
     if (!count) return;
-    const current = slideAt[seriesId] || 0;
-    slideAt[seriesId] = absoluteIndex == null
-      ? (current + delta + count) % count
-      : ((absoluteIndex % count) + count) % count;
-    const gallery = seriesRoot.querySelector('.slideshow[data-slideshow="' + seriesId + '"]');
-    if (gallery) gallery.outerHTML = renderSlideshow(series);
-    if (restoreFocus !== false) focusGallery(seriesRoot, seriesId, delta, absoluteIndex, slideAt[seriesId]);
-    else revealThumbnail(seriesRoot, seriesId);
+    shopAt = absoluteIndex == null ? (shopAt + delta + count) % count : ((absoluteIndex % count) + count) % count;
+    renderShop();
+    if (restoreFocus !== false) focusGallery(shopRoot, seriesId, delta, absoluteIndex, shopAt);
+    else revealThumbnail(shopRoot, seriesId);
   }
 
   function focusGallery(root, seriesId, delta, absoluteIndex, index) {
@@ -408,6 +399,8 @@
       const item = series.works.find(function (work) { return work.id === id; });
       if (item) return { work: item, series: series };
     }
+    const standalone = SITE.standaloneWorks.find(function (work) { return work.id === id; });
+    if (standalone) return { work: standalone, series: { standalone: true, works: [standalone], with: "" } };
     return null;
   }
 
@@ -416,7 +409,7 @@
   }
 
   function altText(item, series) {
-    return item.title[lang] + ", " + seriesTitle(series);
+    return series.standalone ? item.title[lang] : item.title[lang] + ", " + seriesTitle(series);
   }
 
   function unitControls() {

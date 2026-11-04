@@ -1,5 +1,6 @@
 window.STUDIO_URL="https://studio.vitalykrauss.art";
-window.SITE={currency:"EUR",about:null,heroWorkId:null,works:[],series:[],exhibitions:[]};
+window.LAYOUT_IDS=["works","exhibitions","about","contact","shop"];
+window.SITE={currency:"EUR",about:null,hero:{intro:{en:"",ru:"",es:""}},contact:{email:"",links:[]},layout:window.LAYOUT_IDS.map(id=>({id,enabled:true})),heroWorkId:null,works:[],series:[],standaloneWorks:[],worksOrder:[],exhibitions:[]};
 // Normalize the published snapshot to the public presentation model.
 window.normalizeCatalogue = function (source) {
   const text = function (value) {
@@ -24,11 +25,49 @@ window.normalizeCatalogue = function (source) {
     return {id:w.id,title:text(w.title),description:text(w.description),year:w.year || "",seriesId:w.seriesId,image:image(w.image),thumbnail:image(w.thumbnail || w.image),width:w.width,height:w.height,
       offers:sizes.filter(o => Number.isFinite(o.price) && o.price > 0).map(o => ({id:o.id,size:o.widthCm+" × "+o.heightCm+" cm",price:o.price}))};
   });
-  const standalone = {id:"__standalone",index:"",title:Object.fromEntries(["en","ru","es"].map(lang=>[lang,window.I18N.t("exhibition.works",lang)])),with:"",statement:{en:[""],ru:[""],es:[""]},works:[],standalone:true};
-  works.forEach(w => (groups.find(s => s.id === w.seriesId) || standalone).works.push(w));
+  works.forEach(w => { const group=groups.find(s => s.id === w.seriesId); if(group) group.works.push(w); });
   groups.forEach(group=>{const ids=source.series.find(s=>s.id===group.id)?.workIds || [];group.works.sort((a,b)=>(ids.includes(a.id)?ids.indexOf(a.id):9999)-(ids.includes(b.id)?ids.indexOf(b.id):9999));});
-  if (standalone.works.length) groups.push(standalone);
-  return {about:source.about?{...source.about,name:text(source.about.name),role:text(source.about.role),intro:text(source.about.intro),description:text(source.about.description),avatar:source.about.avatar?image(source.about.avatar):null}:null,heroWorkId:source.heroWorkId,series:groups,works:works,exhibitions:source.exhibitions.filter(e => !e.archived).map((e,i) => ({...e,id:e.id || "exhibition-"+(i+1),title:text(e.title),description:text(e.description),venue:text(e.venue),city:text(e.city),country:text(e.country),startDate:e.startDate || e.year || "",endDate:e.endDate || "",workIds:e.workIds || [],media:(e.media || []).map(m=>({...m,image:image(m.image),thumbnail:image(m.thumbnail || m.image)}))}))};
+  const standaloneWorks = works.filter(w => !w.seriesId);
+
+  const hero = {intro: text(source.hero?.intro)};
+  const contact = {email: source.contact?.email || "", links: (source.contact?.links || []).map(link => ({id:link.id,label:text(link.label),url:link.url || "",icon:link.icon || "link"}))};
+  const layout = window.LAYOUT_IDS.every(id => (source.layout || []).some(entry => entry.id === id)) && (source.layout || []).length === window.LAYOUT_IDS.length
+    ? source.layout.map(entry => ({id:entry.id,enabled:Boolean(entry.enabled)}))
+    : window.LAYOUT_IDS.map(id => ({id,enabled:true}));
+
+  const seriesIds = new Set(groups.map(g => g.id));
+  const standaloneIds = new Set(standaloneWorks.map(w => w.id));
+  const submittedOrder = (source.worksOrder || []).filter(entry => entry.type==='series' ? seriesIds.has(entry.id) : standaloneIds.has(entry.id));
+  const keptKeys = new Set(submittedOrder.map(entry => entry.type+":"+entry.id));
+  const missingSeries = groups.filter(g => !keptKeys.has("series:"+g.id)).map(g => ({type:"series",id:g.id}));
+  const missingWorks = standaloneWorks.filter(w => !keptKeys.has("work:"+w.id)).map(w => ({type:"work",id:w.id}));
+  const worksOrder = [...submittedOrder, ...missingSeries, ...missingWorks];
+
+  return {about:source.about?{...source.about,name:text(source.about.name),role:text(source.about.role),intro:text(source.about.intro),description:text(source.about.description),avatar:source.about.avatar?image(source.about.avatar):null}:null,hero,contact,layout,heroWorkId:source.heroWorkId,series:groups,works:works,standaloneWorks,worksOrder,exhibitions:source.exhibitions.filter(e => !e.archived).map((e,i) => ({...e,id:e.id || "exhibition-"+(i+1),title:text(e.title),description:text(e.description),venue:text(e.venue),city:text(e.city),country:text(e.country),startDate:e.startDate || e.year || "",endDate:e.endDate || "",workIds:e.workIds || [],media:(e.media || []).map(m=>({...m,image:image(m.image),thumbnail:image(m.thumbnail || m.image)}))}))};
+};
+
+window.orderedLayout = function (layout) {
+  return (layout || []).filter(entry => entry.enabled).map(entry => entry.id);
+};
+
+const NAV_LABELS = {works:"nav.works",exhibitions:"nav.exhibitions",about:"nav.about",contact:"nav.contact",shop:"nav.shop"};
+
+// Enabled layout sections resolved to {id,href,label}; hrefPrefix lets secondary pages (exhibition.html, series.html) link back to index.html.
+window.navEntries = function (layout, lang, hrefPrefix) {
+  return window.orderedLayout(layout).map(id => ({ id, href: (hrefPrefix || "") + "#" + id, label: window.I18N.t(NAV_LABELS[id], lang) }));
+};
+
+// Rebuilds a <nav>'s <a> links from layout, without disturbing other children (e.g. cart.js relocates theme/lang controls into a .mobile-menu-tools child on narrow viewports).
+window.applyNav = function (navElement, layout, lang, hrefPrefix) {
+  if (!navElement) return;
+  navElement.querySelectorAll(":scope > a").forEach(node => node.remove());
+  const anchor = navElement.querySelector(".mobile-menu-tools");
+  window.navEntries(layout, lang, hrefPrefix).forEach(entry => {
+    const link = document.createElement("a");
+    link.href = entry.href;
+    link.textContent = entry.label;
+    if (anchor) navElement.insertBefore(link, anchor); else navElement.appendChild(link);
+  });
 };
 
 window.exhibitionDate = function(value) {
@@ -53,8 +92,37 @@ window.applyAuthor = function(about,lang,{title,description}={}) {
  document.querySelectorAll('.brand-logo').forEach(node=>node.setAttribute('aria-label',name || window.I18N.t('site.title',lang)));
  const titleNode=document.querySelector('#about-title');if(titleNode){titleNode.textContent=name;titleNode.hidden=!name;}
  for(const field of ['intro','description'])document.querySelectorAll(`[data-author-${field}]`).forEach(node=>{node.textContent=value(field);node.hidden=!value(field);});
- const email=document.querySelector('#about-email');if(email){email.hidden=!about?.email;email.href=about?.email?'mailto:'+about.email:'';email.querySelector('span').textContent=about?.email || '';}
  const avatar=document.querySelector('#author-avatar');if(avatar){avatar.src=about?.avatar || 'images/author.webp';avatar.alt=name;}
+};
+
+// Statement + slideshow markup for a single series, shared by the Works-grid page and series.html.
+window.renderSeriesBody = function(series, lang, index) {
+  const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const t = key => window.I18N.t(key, lang);
+  const tf = (key, vars) => t(key).replace(/\{(\w+)\}/g, (_, name) => vars[name] == null ? "" : String(vars[name]));
+  const arrowIcon = previous => '<svg class="icon' + (previous ? ' icon-prev' : '') + '" aria-hidden="true"><use href="#icon-arrow"/></svg>';
+  const withLine = series.with ? '<p class="series-with">' + esc(tf("series.with", { name: series.with })) + "</p>" : "";
+  const statement = '<div class="statement"><p>' + esc(series.statement[lang][0]) + "</p>"
+    + (series.statement[lang].length > 1 ? '<details><summary>' + esc(t("series.about")) + '</summary>'
+      + series.statement[lang].slice(1).map(p => "<p>" + esc(p) + "</p>").join("") + "</details>" : "") + "</div>";
+  const works = series.works;
+  const count = works.length;
+  if (!count) return withLine + statement;
+  const at = ((index || 0) % count + count) % count;
+  const item = works[at];
+  const title = item.title[lang];
+  const seriesTitle = series.title ? (typeof series.title === "string" ? series.title : series.title[lang]) : "";
+  const thumbnails = works.map((work, thumbIndex) => '<button type="button" class="slide-thumb" data-go="' + thumbIndex + '" data-slideshow="series" aria-label="' + esc(work.title[lang]) + '" aria-current="' + (thumbIndex === at) + '"><img src="' + esc(work.thumbnail || work.image) + '" alt="" loading="lazy" width="' + work.width + '" height="' + work.height + '"></button>').join("");
+  const gallery = '<div class="slideshow" data-slideshow="series" role="region" aria-roledescription="' + esc(t("slide.gallery")) + '" aria-label="' + esc(seriesTitle) + '" tabindex="0">'
+    + '<div class="slide-frame" data-slideshow="series"><button type="button" class="work" data-open-work="' + esc(item.id) + '" aria-label="' + esc(t("slide.enlarge") + ": " + title) + '">'
+    + '<img src="' + esc(item.image) + '" width="' + item.width + '" height="' + item.height + '" alt="' + esc(title) + '" loading="lazy">'
+    + "</button></div>"
+    + '<div class="slide-bar"><p class="slide-caption" aria-live="polite" aria-atomic="true"><span class="work-name">' + esc(title) + '</span><span class="slide-position">' + String(at + 1).padStart(2, "0") + " / " + String(count).padStart(2, "0") + '</span></p>'
+    + '<div class="slide-controls"><button type="button" class="slide-arrow" data-step="-1" data-slideshow="series" aria-label="' + esc(t("slide.prev")) + '">' + arrowIcon(true) + '</button>'
+    + '<button type="button" class="slide-arrow" data-step="1" data-slideshow="series" aria-label="' + esc(t("slide.next")) + '">' + arrowIcon(false) + "</button></div></div>"
+    + '<p class="work-description">' + esc(item.description[lang]) + "</p>"
+    + '<div class="slide-thumbnails" aria-label="' + esc(t("slide.thumbnails")) + '">' + thumbnails + "</div></div>";
+  return withLine + statement + gallery;
 };
 
 window.exhibitionPlace = function(item,lang){return [item.venue?.[lang],item.city?.[lang],item.country?.[lang]].filter(Boolean).join(', ');};

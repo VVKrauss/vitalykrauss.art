@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Art catalogue</title>
+  <meta name="description" content="">
+  <meta name="theme-color" content="#f5f2eb">
+  <script>
+    try {
+      if (localStorage.getItem('vk-theme') === 'dark') {
+        document.documentElement.dataset.theme = 'dark';
+        document.querySelector('meta[name="theme-color"]').content = '#191a18';
+      }
+    } catch (_) {}
+  </script>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,520;0,9..144,620;1,9..144,520&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <svg class="icon-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+    <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol>
+    <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M20.5 13.5A8.8 8.8 0 0 1 10.5 3 9 9 0 1 0 20.5 13.5Z"/></symbol>
+  </svg>
+  <a class="skip" href="index.html#works" data-i18n="skip">Skip to works</a>
+  <header class="site-header">
+    <a class="wordmark brand-logo" href="index.html" aria-label="Art catalogue"><img src="images/logo-vk.png" alt="" width="54" height="54"></a>
+    <button type="button" id="menu-toggle" class="icon-button menu-toggle" data-i18n-aria="menu.label" aria-label="Menu" aria-expanded="false" aria-controls="site-navigation"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    <nav id="site-navigation" class="site-nav" data-i18n-aria="nav.label" aria-label="Navigation"></nav>
+    <div class="header-tools">
+      <div class="cart-menu"><button type="button" id="cart-toggle" class="icon-button" aria-label="Cart" aria-expanded="false" aria-controls="cart-dropdown"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h2l2 12h12l2-9H6M8 20h.01M18 20h.01"/></svg><span id="cart-count">0</span></button><div id="cart-dropdown" hidden></div></div>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch to dark theme">
+        <svg class="theme-icon theme-moon" aria-hidden="true"><use href="#icon-moon"/></svg>
+        <svg class="theme-icon theme-sun" aria-hidden="true"><use href="#icon-sun"/></svg>
+      </button>
+      <div class="langs" role="group" data-i18n-aria="lang.group" aria-label="Language">
+        <button type="button" data-lang="en" lang="en">EN</button>
+        <button type="button" data-lang="ru" lang="ru">RU</button>
+        <button type="button" data-lang="es" lang="es">ES</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="series-page" class="exhibition-page" aria-live="polite"><p data-i18n="exhibition.loading">Loading exhibition…</p></main>
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p data-i18n="footer.credit">made with love by redflow d</p>
+    </div>
+  </footer>
+
+  <dialog id="series-viewer" data-i18n-aria="exhibition.preview" aria-label="Image preview"><div class="photo-viewer-tools"><button type="button" class="ghost" data-close-photo>Close ×</button></div><img alt=""><p></p></dialog>
+  <script src="js/i18n.js"></script>
+  <script src="js/content.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/series.js"></script>
+</body>
+</html>
