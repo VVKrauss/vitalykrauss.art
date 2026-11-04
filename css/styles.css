@@ -262,8 +262,9 @@ dialog::backdrop { background: oklch(0 0 0 / .55); }
 @media(max-width:480px){.exhibition.with-cover{grid-template-columns:88px minmax(0,1fr)}}
 
 /* Works grid: one card per series (random cover) or standalone work. */
-.works-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:2.5rem 1.8rem;margin-top:1.5rem}
-.work-card{display:block;width:100%;padding:0;border:0;background:transparent;text-align:left;cursor:pointer;font:inherit;color:inherit;text-decoration:none}
+.works-grid{display:flex;gap:1.8rem;overflow-x:auto;scroll-snap-type:x proximity;margin-top:1.5rem;padding:.2rem .2rem 1.3rem;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.works-grid::-webkit-scrollbar{height:6px}
+.work-card{display:block;flex:0 0 auto;width:min(420px,72vw);scroll-snap-align:start;padding:0;border:0;background:transparent;text-align:left;cursor:pointer;font:inherit;color:inherit;text-decoration:none}
 .work-card img{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;background:var(--surface);outline:1px solid rgb(0 0 0 / .1);outline-offset:-1px}
 .work-card-title{display:block;margin-top:.9rem;font-size:.92rem}
 .work-card-meta{display:block;margin-top:.2rem;color:var(--ink-soft);font-size:.78rem;font-variant-numeric:tabular-nums}
@@ -276,4 +277,4 @@ dialog::backdrop { background: oklch(0 0 0 / .55); }
 .contact-link{display:inline-flex;align-items:center;gap:.6rem;min-height:44px;color:var(--ink);text-decoration:none;font-size:.88rem}
 .contact-link:hover{color:var(--accent)}
 .contact-link .icon{width:1.2rem;height:1.2rem}
-@media(max-width:480px){.works-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1.8rem 1.2rem}}
+@media(max-width:480px){.works-grid{gap:1.2rem}.work-card{width:80vw}}
