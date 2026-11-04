@@ -261,15 +261,11 @@ dialog::backdrop { background: oklch(0 0 0 / .55); }
 @media(max-width:1050px){.exhibition.with-cover{grid-template-columns:120px minmax(0,1fr)}.exhibition-cover{grid-row:auto}.exhibition.with-cover>div{grid-column:2}}
 @media(max-width:480px){.exhibition.with-cover{grid-template-columns:88px minmax(0,1fr)}}
 
-/* Works grid: one card per series (random cover) or standalone work. */
-.works-grid{display:flex;gap:1.8rem;overflow-x:auto;scroll-snap-type:x proximity;margin-top:1.5rem;padding:.2rem .2rem 1.3rem;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
-.works-grid::-webkit-scrollbar{height:6px}
-.work-card{display:block;flex:0 0 auto;width:min(420px,72vw);scroll-snap-align:start;padding:0;border:0;background:transparent;text-align:left;cursor:pointer;font:inherit;color:inherit;text-decoration:none}
-.work-card img{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;background:var(--surface);outline:1px solid rgb(0 0 0 / .1);outline-offset:-1px}
-.work-card-title{display:block;margin-top:.9rem;font-size:.92rem}
-.work-card-meta{display:block;margin-top:.2rem;color:var(--ink-soft);font-size:.78rem;font-variant-numeric:tabular-nums}
-.work-card:hover .work-card-title{color:var(--accent)}
-[data-theme=dark] .work-card img{outline-color:rgb(255 255 255 / .1)}
+/* Works list: one row per series (links to series.html) or standalone work (opens the viewer). */
+.series-link{color:inherit;text-decoration:none;cursor:pointer;font:inherit}
+.series-link .series-title{min-width:0;overflow-wrap:anywhere;transition:color 150ms cubic-bezier(.2,0,0,1)}
+.series-link:hover .series-title{color:var(--accent)}
+.series-link .series-count .icon{width:20px;height:20px}
 
 /* Contact: email plus an ordered list of links with an auto-detected icon. */
 .contact-email{margin:0 0 1.6rem}
@@ -277,4 +273,3 @@ dialog::backdrop { background: oklch(0 0 0 / .55); }
 .contact-link{display:inline-flex;align-items:center;gap:.6rem;min-height:44px;color:var(--ink);text-decoration:none;font-size:.88rem}
 .contact-link:hover{color:var(--accent)}
 .contact-link .icon{width:1.2rem;height:1.2rem}
-@media(max-width:480px){.works-grid{gap:1.2rem}.work-card{width:80vw}}
