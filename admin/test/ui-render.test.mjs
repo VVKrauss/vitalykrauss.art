@@ -34,10 +34,12 @@ test('layout tab renders hero text fields and a toggle switch per section in ord
  assert.ok(workIndex>=0 && shopIndex>=0 && workIndex<shopIndex);
 });
 
-test('layout tab renders a draggable Works-grid order mixing series and standalone works',()=>{
- const html=render('layout');
+test('works tab renders a draggable site order mixing series and standalone works',()=>{
+ const html=render('works');
+ assert.match(html,/Порядок на сайте/);
  assert.match(html,/data-order-id="series:s1"[^]*A series/);
  assert.match(html,/data-order-id="work:w1"[^]*Solo work/);
+ assert.doesNotMatch(render('layout'),/works-order/);
 });
 
 test('contact tab renders email field and an ordered link list',()=>{

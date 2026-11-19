@@ -15,14 +15,14 @@ async (page) => {
  await page.locator('#catalogue-content:not([hidden])').waitFor();
  for(const width of [320,390,768,1440]){
   await page.setViewportSize({width,height:1000});
-  const cards=await page.locator('.work-card img').evaluateAll(images=>images.map(e=>({w:e.getBoundingClientRect().width,h:e.getBoundingClientRect().height,fit:getComputedStyle(e).objectFit})));
-  check(cards.every(e=>Math.abs(e.h/e.w-1.25)<0.02 && e.fit==='contain'),`Cards must show whole works in stable 4:5 previews at ${width}px`);
+  const cards=await page.locator('.works-entry .exhibition-cover img').evaluateAll(images=>images.map(e=>({w:e.getBoundingClientRect().width,h:e.getBoundingClientRect().height,fit:getComputedStyle(e).objectFit})));
+  check(cards.length===2 && cards.every(e=>Math.abs(e.h/e.w-1)<0.02 && e.w<=240.1),`Works rows must have bounded square covers at ${width}px`);
   check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`No horizontal overflow at ${width}px`);
  }
  await page.setViewportSize({width:1440,height:1000});
  check(await page.locator('.site-nav a[href="#contact"]').count()===0,'Do not advertise a hidden Contact section');
  check(await page.locator('#works h2').count()===1 && await page.locator('#exhibitions h2').count()===1,'Works and Exhibitions must be discoverable as section headings');
- await page.locator('.work-card[data-open-work]').click();check(await named('#viewer'),'Work dialog needs an accessible name');await page.keyboard.press('Escape');
+ await page.locator('.works-entry .exhibition-cover[data-open-work]').click();check(await named('#viewer'),'Work dialog needs an accessible name');await page.keyboard.press('Escape');
  await page.evaluate(()=>window.VKCart.add('one','print'));await page.locator('#cart-toggle').click();await page.locator('[data-cart-checkout]').click();
  check(await named('#request-dialog'),'Request dialog needs an accessible name');await page.keyboard.press('Escape');
  await page.goto(base+'series.html?id=series');await page.locator('main h1').waitFor();
