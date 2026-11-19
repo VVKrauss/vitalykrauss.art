@@ -34,6 +34,8 @@ window.normalizeCatalogue = function (source) {
   const layout = window.LAYOUT_IDS.every(id => (source.layout || []).some(entry => entry.id === id)) && (source.layout || []).length === window.LAYOUT_IDS.length
     ? source.layout.map(entry => ({id:entry.id,enabled:Boolean(entry.enabled)}))
     : window.LAYOUT_IDS.map(id => ({id,enabled:true}));
+  // Empty contacts have no rendered section to link to, on any public page.
+  if (!contact.email && !contact.links.length) layout.forEach(entry => { if (entry.id === 'contact') entry.enabled = false; });
 
   const seriesIds = new Set(groups.map(g => g.id));
   const standaloneIds = new Set(standaloneWorks.map(w => w.id));
@@ -70,9 +72,10 @@ window.applyNav = function (navElement, layout, lang, hrefPrefix) {
   });
 };
 
-window.exhibitionDate = function(value) {
+window.exhibitionDate = function(value,lang='en') {
   if(!/^\d{4}-\d{2}-\d{2}$/.test(value || ''))return value || '';
-  return new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T00:00:00Z'));
+  const locale={en:'en-GB',ru:'ru-RU',es:'es-ES'}[lang] || 'en-GB';
+  return new Intl.DateTimeFormat(locale,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T00:00:00Z'));
 };
 
 window.exhibitionLink = function(value) {
@@ -127,6 +130,6 @@ window.renderSeriesBody = function(series, lang, index) {
 
 window.exhibitionPlace = function(item,lang){return [item.venue?.[lang],item.city?.[lang],item.country?.[lang]].filter(Boolean).join(', ');};
 window.exhibitionMeta = function(item,lang){
- const dates=window.exhibitionDate(item.startDate)+(item.endDate && item.endDate!==item.startDate?' — '+window.exhibitionDate(item.endDate):'');
+ const dates=window.exhibitionDate(item.startDate,lang)+(item.endDate && item.endDate!==item.startDate?' — '+window.exhibitionDate(item.endDate,lang):'');
  return [dates,window.exhibitionPlace(item,lang)].filter(Boolean).join(' · ');
 };

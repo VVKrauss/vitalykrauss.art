@@ -208,7 +208,7 @@
         if (!series || !series.works.length) return '';
         const cover = series.works[Math.floor(Math.random() * series.works.length)];
         return '<a class="work-card series-card" href="series.html?id=' + encodeURIComponent(series.id) + '">'
-          + '<img src="' + escapeHtml(cover.thumbnail || cover.image) + '" alt="" loading="lazy" width="' + cover.width + '" height="' + cover.height + '">'
+          + '<img src="' + escapeHtml(cover.image || cover.thumbnail) + '" alt="" loading="lazy" width="' + cover.width + '" height="' + cover.height + '">'
           + '<span class="work-card-title">' + escapeHtml(seriesTitle(series)) + '</span>'
           + '<span class="work-card-meta">' + escapeHtml(tf('series.count', { n: series.works.length })) + '</span>'
           + '</a>';
@@ -216,12 +216,12 @@
       const work = SITE.standaloneWorks.find(function (item) { return item.id === entry.id; });
       if (!work) return '';
       return '<button type="button" class="work-card" data-open-work="' + escapeHtml(work.id) + '">'
-        + '<img src="' + escapeHtml(work.thumbnail || work.image) + '" alt="" loading="lazy" width="' + work.width + '" height="' + work.height + '">'
+        + '<img src="' + escapeHtml(work.image || work.thumbnail) + '" alt="" loading="lazy" width="' + work.width + '" height="' + work.height + '">'
         + '<span class="work-card-title">' + escapeHtml(work.title[lang]) + '</span>'
         + (work.year ? '<span class="work-card-meta">' + escapeHtml(work.year) + '</span>' : '')
         + '</button>';
     }).join('');
-    worksRoot.innerHTML = '<p class="section-label">' + escapeHtml(t('works.label')) + '</p>'
+    worksRoot.innerHTML = '<h2 class="section-label">' + escapeHtml(t('works.label')) + '</h2>'
       + (entries ? '<div class="works-grid">' + entries + '</div>' : (catalogueRevision ? '<p>' + escapeHtml(t('catalogue.empty')) + '</p>' : ''));
   }
 
@@ -298,7 +298,7 @@
   function exhibitionPlaces(work) { return SITE.exhibitions.filter(e => e.workIds.includes(work.id)).map(place).filter(Boolean).join(" · "); }
   function renderExhibitions() {
     const labels={more:t('exhibition.more'),link:t('exhibition.link')};
-    exhibitionsRoot.innerHTML='<p class="section-label">'+escapeHtml(t('exhibitions.label'))+'</p>'+SITE.exhibitions.map(function(item) {
+    exhibitionsRoot.innerHTML='<h2 class="section-label">'+escapeHtml(t('exhibitions.label'))+'</h2>'+SITE.exhibitions.map(function(item) {
       const found=item.workIds.map(findWork).find(Boolean);
       const cover=found ? found.work.image : item.media?.[0]?.image;
       const href='exhibition.html?id='+encodeURIComponent(item.id);
@@ -382,7 +382,7 @@
     viewerBody.innerHTML = '<div class="viewer-gallery-controls"><button type="button" class="slide-arrow" data-viewer-step="-1" aria-label="'+escapeHtml(t('slide.prev'))+'">'+arrowIcon(true)+'</button><button type="button" class="slide-arrow" data-viewer-step="1" aria-label="'+escapeHtml(t('slide.next'))+'">'+arrowIcon(false)+'</button></div><div class="viewer-layout"><img src="' + escapeHtml(found.work.image) + '" alt="'
       + escapeHtml(altText(found.work, found.series)) + '"><div class="viewer-copy"><div class="viewer-tools"><p class="eyebrow">'
       + escapeHtml(t("viewer.acquire")) + '</p><button type="button" class="icon-button" data-close-viewer>'
-      + escapeHtml(t("close")) + "</button></div><h3>" + escapeHtml(found.work.title[lang]) + "</h3><p class=\"viewer-year\">"
+      + escapeHtml(t("close")) + "</button></div><h3 id=\"viewer-title\">" + escapeHtml(found.work.title[lang]) + "</h3><p class=\"viewer-year\">"
       + escapeHtml([found.series.standalone ? "" : seriesTitle(found.series),found.series.with,found.work.year].filter(Boolean).join(" · "))
       + '</p><p>'+escapeHtml(found.work.description[lang])+'</p><p>'+escapeHtml(exhibitionPlaces(found.work))+'</p>'+(found.work.offers.length?'<div class="size-tools"><span>'+escapeHtml(t('shop.size'))+'</span>'+unitControls()+'</div>':'')+'<div class="offers">' + found.work.offers.map(function (itemOffer) {
         return renderOffer(found.work, itemOffer);

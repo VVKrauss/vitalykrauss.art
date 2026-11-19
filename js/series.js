@@ -4,7 +4,7 @@
  let lang=preference('vk-lang') || 'en',catalogue,slideAt=0,opener;
  if(!['en','ru','es'].includes(lang))lang='en';
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const words=()=>new Proxy({}, {get:(_,key)=>window.I18N.t('exhibition.'+key,lang)});
+ const words=()=>new Proxy({}, {get:(_,key)=>window.I18N.t('series.'+key,lang)});
  function preference(key,value){try{if(value===undefined)return localStorage.getItem(key);localStorage.setItem(key,value);}catch{}}
  function header(){document.documentElement.lang=lang;window.I18N.apply(lang);window.applyNav(document.querySelector('#site-navigation'),catalogue?.layout || window.LAYOUT_IDS.map(id=>({id,enabled:true})),lang,'index.html');document.querySelectorAll('[data-lang]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.lang===lang)));document.querySelector('[data-close-photo]').textContent=words().close;const dark=document.documentElement.dataset.theme==='dark';document.querySelector('#theme-toggle').setAttribute('aria-label',window.I18N.t(dark?'theme.light':'theme.dark',lang));if(catalogue)window.VKCart.update(catalogue.works,lang,preference('vk-units')==='in'?'in':'cm',true);}
  function backHref(){return catalogue && !window.orderedLayout(catalogue.layout).includes('works') ? 'index.html' : 'index.html#works';}
@@ -20,7 +20,21 @@
  }
  async function load(){header();root.textContent=words().loading;try{const response=await fetch(window.STUDIO_URL+'/api/catalogue',{credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(20000)});if(!response.ok)throw new Error();const data=await response.json();if(!data.publishedAt || !Array.isArray(data.series))throw new Error();catalogue=normalizeCatalogue(data);render();}catch{root.innerHTML='<p>'+words().error+'</p><button type="button" class="ghost">'+words().retry+'</button>';root.querySelector('button').onclick=load;}}
 
- function stepTo(index){const series=currentSeries();if(!series || !series.works.length)return;const count=series.works.length;slideAt=((index%count)+count)%count;render();}
+ function stepTo(index){
+  const series=currentSeries();if(!series || !series.works.length)return;
+  const count=series.works.length;slideAt=((index%count)+count)%count;
+  const work=series.works[slideAt],gallery=root.querySelector('.slideshow');
+  const button=gallery.querySelector('[data-open-work]'),image=button.querySelector('img');
+  button.dataset.openWork=work.id;
+  button.setAttribute('aria-label',window.I18N.t('slide.enlarge',lang)+': '+work.title[lang]);
+  image.width=work.width;image.height=work.height;image.alt=work.title[lang];image.src=work.image;
+  gallery.querySelector('.work-name').textContent=work.title[lang];
+  gallery.querySelector('.slide-position').textContent=String(slideAt+1).padStart(2,'0')+' / '+String(count).padStart(2,'0');
+  gallery.querySelector('.work-description').textContent=work.description[lang];
+  gallery.querySelectorAll('[data-go]').forEach(thumb=>thumb.setAttribute('aria-current',String(Number(thumb.dataset.go)===slideAt)));
+  const active=gallery.querySelector('[aria-current="true"]'),strip=active.parentElement;
+  strip.scrollLeft=Math.max(0,active.offsetLeft-strip.offsetLeft-strip.clientWidth/2+active.clientWidth/2);
+ }
 
  document.addEventListener('click',event=>{
   const stepButton=event.target.closest('[data-step]');

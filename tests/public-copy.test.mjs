@@ -78,3 +78,21 @@ test('navEntries resolves enabled sections to labelled links, prefixed for cross
  const entries = context.window.navEntries(layout, 'en', 'index.html');
  assert.deepEqual(Array.from(entries, e => [e.id, e.href]), [['works', 'index.html#works'], ['contact', 'index.html#contact']]);
 });
+
+test('exhibition dates follow the selected language without shifting the calendar day', async () => {
+ const context={window:{},Intl};vm.createContext(context);vm.runInContext(await readFile(new URL('../js/content.js',import.meta.url),'utf8'),context);
+ const item={startDate:'2026-02-10',endDate:'2026-02-12'};
+ assert.equal(context.window.exhibitionMeta(item,'ru'),'10 февр. 2026 г. — 12 февр. 2026 г.');
+ assert.equal(context.window.exhibitionMeta(item,'es'),'10 feb 2026 — 12 feb 2026');
+ assert.equal(context.window.exhibitionMeta({startDate:'2026'},'ru'),'2026');
+});
+
+test('published navigation omits empty contacts and restores them when contact details are published', async () => {
+ const context={window:{I18N:{t:key=>key}},URL,Intl};vm.createContext(context);vm.runInContext(await readFile(new URL('../js/content.js',import.meta.url),'utf8'),context);
+ const source={works:[],series:[],exhibitions:[],contact:{email:'',links:[]},layout:['works','exhibitions','about','contact','shop'].map(id=>({id,enabled:true}))};
+ const links=contact=>context.window.navEntries(context.window.normalizeCatalogue({...source,contact}).layout,'en','index.html');
+ assert.ok(!links(source.contact).some(entry=>entry.id==='contact'));
+ assert.equal(links({email:'artist@example.test',links:[]}).find(entry=>entry.id==='contact').href,'index.html#contact');
+ assert.ok(links({email:'',links:[{id:'one',label:{en:'Portfolio'},url:'https://example.test/'}]}).some(entry=>entry.id==='contact'));
+ assert.equal(source.layout.find(entry=>entry.id==='contact').enabled,true);
+});
