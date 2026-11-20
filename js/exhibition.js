@@ -7,7 +7,7 @@
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const words=()=>new Proxy({}, {get:(_,key)=>window.I18N.t('exhibition.'+key,lang)});
  function preference(key,value){try{if(value===undefined)return localStorage.getItem(key);localStorage.setItem(key,value);}catch{}}
- function header(){document.documentElement.lang=lang;window.I18N.apply(lang);window.applyNav(document.querySelector('#site-navigation'),catalogue?.layout || window.SITE.layout,lang,'index.html');document.querySelectorAll('[data-lang]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.lang===lang)));document.querySelector('[data-close-photo]').textContent=words().close;const dark=document.documentElement.dataset.theme==='dark';document.querySelector('#theme-toggle').setAttribute('aria-label',window.I18N.t(dark?'theme.light':'theme.dark',lang));window.applyAuthor(catalogue?.about,lang);if(catalogue)window.VKCart.update(catalogue.works,lang,preference('vk-units')==='in'?'in':'cm',true);}
+ function header(){document.documentElement.lang=lang;window.I18N.apply(lang);window.applyNav(document.querySelector('#site-navigation'),catalogue?.layout || window.SITE.layout,lang,'index.html');document.querySelectorAll('[data-lang]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.lang===lang)));document.querySelector('[data-close-photo]').textContent=words().close;const dark=document.documentElement.dataset.theme==='dark';document.querySelector('#theme-toggle').setAttribute('aria-label',window.I18N.t(dark?'theme.light':'theme.dark',lang));window.applyAuthor(catalogue?.about,lang);if(catalogue)window.VKCart.update(catalogue.works,lang,preference('vk-units')==='in'?'in':'cm',true,catalogue.layout);}
  function backHref(sectionId){return catalogue && !window.orderedLayout(catalogue.layout).includes(sectionId) ? 'index.html' : 'index.html#'+sectionId;}
 
  function render(){
@@ -22,7 +22,7 @@
     +(photos.length?'<section class="exhibition-section exhibition-materials"><h2>'+labels.photos+'</h2><div class="exhibition-photo-grid">'+photos.map((photo,i)=>'<button type="button" class="exhibition-media-thumb" data-photo="'+(works.length+i)+'" aria-label="'+esc(labels.photos+' '+(i+1))+'"><img src="'+esc(photo.thumbnail || photo.image)+'" alt="" loading="lazy" width="'+esc(photo.width)+'" height="'+esc(photo.height)+'"></button>').join('')+'</div></section>':'');
   imageList=[...works.map(work=>({image:work.image,title:work.title[lang]})),...photos.map(photo=>({image:photo.image,title:''}))];
   root.querySelectorAll('[data-photo]').forEach(button=>button.onclick=()=>{if(Date.now()<suppressClickUntil)return;opener=button;photoAt=Number(button.dataset.photo);showPhoto();viewer.showModal();});
-  window.VKCart.update(catalogue.works,lang,preference('vk-units')==='in'?'in':'cm',true);
+  window.VKCart.update(catalogue.works,lang,preference('vk-units')==='in'?'in':'cm',true,catalogue.layout);
 
  }
  async function load(){header();root.textContent=words().loading;try{const response=await fetch(window.STUDIO_URL+'/api/catalogue',{credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(20000)});if(!response.ok)throw new Error();const data=await response.json();if(!data.publishedAt || !Array.isArray(data.exhibitions))throw new Error();catalogue=normalizeCatalogue(data);render();}catch{root.innerHTML='<p>'+words().error+'</p><button type="button" class="ghost">'+words().retry+'</button>';root.querySelector('button').onclick=load;}}

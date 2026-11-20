@@ -178,7 +178,7 @@
       heroImage.closest("figure").querySelector("figcaption").innerHTML="<span>"+escapeHtml(heroWork.series.standalone ? "" : seriesTitle(heroWork.series))+"</span><span>"+escapeHtml([heroWork.work.title[lang],heroWork.work.year].filter(Boolean).join(" · "))+"</span>";
     }
     document.querySelectorAll('[data-unit]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.unit===units)));
-    window.VKCart.update(SITE.works,lang,units,Boolean(catalogueRevision));
+    window.VKCart.update(SITE.works,lang,units,Boolean(catalogueRevision),SITE.layout);
     updateTheme();
     renderWorks();
     renderExhibitions();
