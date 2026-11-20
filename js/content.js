@@ -1,6 +1,18 @@
 window.STUDIO_URL="https://studio.vitalykrauss.art";
 window.LAYOUT_IDS=["works","exhibitions","about","contact","shop"];
-window.SITE={currency:"EUR",about:null,hero:{intro:{en:"",ru:"",es:""}},contact:{email:"",links:[]},layout:window.LAYOUT_IDS.map(id=>({id,enabled:true})),heroWorkId:null,works:[],series:[],standaloneWorks:[],worksOrder:[],exhibitions:[]};
+// Reuse confirmed navigation across pages; never guess visibility before the API responds.
+function initialNavigationLayout() {
+  try {
+    const layout=JSON.parse(sessionStorage.getItem('vk-navigation-layout'));
+    if (Array.isArray(layout) && layout.length===window.LAYOUT_IDS.length
+      && new Set(layout.map(entry=>entry?.id)).size===window.LAYOUT_IDS.length
+      && layout.every(entry=>window.LAYOUT_IDS.includes(entry?.id) && typeof entry.enabled==='boolean')) {
+      return layout.map(entry=>({id:entry.id,enabled:entry.enabled}));
+    }
+  } catch (_) {}
+  return [];
+}
+window.SITE={currency:"EUR",about:null,hero:{intro:{en:"",ru:"",es:""}},contact:{email:"",links:[]},layout:initialNavigationLayout(),heroWorkId:null,works:[],series:[],standaloneWorks:[],worksOrder:[],exhibitions:[]};
 // Normalize the published snapshot to the public presentation model.
 window.normalizeCatalogue = function (source) {
   const text = function (value) {
@@ -62,9 +74,22 @@ window.navEntries = function (layout, lang, hrefPrefix) {
 // Rebuilds a <nav>'s <a> links from layout, without disturbing other children (e.g. cart.js relocates theme/lang controls into a .mobile-menu-tools child on narrow viewports).
 window.applyNav = function (navElement, layout, lang, hrefPrefix) {
   if (!navElement) return;
-  navElement.querySelectorAll(":scope > a").forEach(node => node.remove());
+  if (layout.length===window.LAYOUT_IDS.length) {
+    try { sessionStorage.setItem('vk-navigation-layout',JSON.stringify(layout)); } catch (_) {}
+  }
+  const entries=window.navEntries(layout,lang,hrefPrefix);
+  const links=Array.from(navElement.querySelectorAll(":scope > a"));
+  if (links.length===entries.length) {
+    links.forEach((link,index)=>{
+      const entry=entries[index];
+      if (link.getAttribute('href')!==entry.href) link.setAttribute('href',entry.href);
+      if (link.textContent!==entry.label) link.textContent=entry.label;
+    });
+    return;
+  }
+  links.forEach(node => node.remove());
   const anchor = navElement.querySelector(".mobile-menu-tools");
-  window.navEntries(layout, lang, hrefPrefix).forEach(entry => {
+  entries.forEach(entry => {
     const link = document.createElement("a");
     link.href = entry.href;
     link.textContent = entry.label;

@@ -96,3 +96,16 @@ test('published navigation omits empty contacts and restores them when contact d
  assert.ok(links({email:'',links:[{id:'one',label:{en:'Portfolio'},url:'https://example.test/'}]}).some(entry=>entry.id==='contact'));
  assert.equal(source.layout.find(entry=>entry.id==='contact').enabled,true);
 });
+
+test('initial navigation uses only a complete confirmed layout and never guesses enabled sections', async () => {
+ const source=await readFile(new URL('../js/content.js',import.meta.url),'utf8');
+ const load=value=>{const context={window:{},sessionStorage:{getItem:()=>value}};vm.createContext(context);vm.runInContext(source,context);return context.window.SITE.layout;};
+ assert.equal(load(null).length,0);
+ assert.equal(load('{invalid').length,0);
+ assert.equal(load(JSON.stringify([{id:'shop',enabled:true}])).length,0);
+ assert.equal(load(JSON.stringify(Array.from({length:5},()=>({id:'works',enabled:true})))).length,0);
+ const layout=['about','works','exhibitions','contact','shop'].map(id=>({id,enabled:!['contact','shop'].includes(id)}));
+ assert.equal(JSON.stringify(load(JSON.stringify(layout))),JSON.stringify(layout));
+ const context={window:{},sessionStorage:{getItem(){throw new Error('Storage blocked');}}};vm.createContext(context);vm.runInContext(source,context);
+ assert.equal(context.window.SITE.layout.length,0);
+});
